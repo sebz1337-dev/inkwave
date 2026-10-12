@@ -113,6 +113,9 @@ class Game {
     this.CharacterClass = charMod.Character;
     try { this.PropKit = (await import('./world/props.js')).PropKit; } catch (e) { console.error('[inkwave] prop kit failed to load', e); this.PropKit = null; }
     G.audio = audioMod.audio; G.music = musicMod.music;
+    // open the audio device now, behind the loading screen (~150 ms: device + reverb impulses). Without a gesture the
+    // context starts suspended; the first key / click resumes it (audio.js _installUnlock) instead of freezing that frame
+    G.audio?.init?.();
     await progress(0.15, 'Building the plaza…');
 
     // world
