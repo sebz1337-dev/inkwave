@@ -90,6 +90,11 @@ export class Renderer {
     r.toneMapping = THREE.NeutralToneMapping;
     r.toneMappingExposure = 1.0;
     r.info.autoReset = false;
+    // Pin every program: three destroys a GL program once no material uses it, and characters / showcase / podium are
+    // disposed and rebuilt on every menu <-> match switch, so each switch re-linked the same shaders (a blocking
+    // 0.5-1 s). Never freed: the variant set is bounded (~200 programs).
+    const progs = r.info.programs;
+    progs.push = (...p) => { for (const x of p) x.usedTimes++; return Array.prototype.push.apply(progs, p); };
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFShadowMap;
     r.setClearColor(0x9fd8f0, 1);
