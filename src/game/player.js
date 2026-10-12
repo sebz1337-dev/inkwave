@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { G, clamp, lerp, angleDiff } from '../core/ctx.js';
 import { PLAYER, weaponRange } from '../config.js';
 import { Physics, Hit } from './physics.js';
+import { CHEATS } from './cheats.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3(), _c = new THREE.Vector3();
 const _hit = new Hit();
@@ -54,7 +55,8 @@ export class PlayerController {
     const as = this._assistTarget(usingPad ? (s.aimAssist ?? 1) : (s.aimAssistMouse ? 0.5 : 0));
     // ---- look
     const inv = s.invertY ? -1 : 1;
-    const friction = as ? lerp(1, 0.58, as.closeness * as.strength) : 1;
+    // strength runs to 5 (500 %): past 1 the slowdown keeps a floor so the camera never locks up
+    const friction = as ? Math.max(0.15, lerp(1, 0.58, as.closeness * as.strength)) : 1;
     let lookActive = false;
     const mdx = inp.mouse.dx, mdy = inp.mouse.dy;
     // Vortex Strike targeting: the mouse / right stick drives a cursor over the (opened) stage map, fire launches
@@ -108,9 +110,22 @@ export class PlayerController {
     if (ml > 1) { mx /= ml; mz /= ml; }
     // tracking assist: carry a share of the target's angular motion while the player is engaging (look or move input)
     if (as && as.prevValid && (lookActive || ml > 0.2 || it.fire)) {
-      const share = 0.42 * as.strength * as.closeness;
+      const share = Math.min(1, 0.42 * as.strength * as.closeness);
       rig.yaw += angleDiff(as.prevYaw, as.yaw) * share;
       rig.pitch += (as.pitch - as.prevPitch) * share * 0.7;
+    }
+    // above 100 %: the crosshair is also pulled onto the target, harder the higher the setting
+    if (as && as.strength > 1) {
+      const k = 1 - Math.exp(-(as.strength - 1) * 3 * as.closeness * dt);
+      rig.yaw += angleDiff(rig.yaw, as.yaw) * k;
+      rig.pitch += (as.pitch - rig.pitch) * k;
+    }
+    // aimbot (cheat): lock onto the enemy nearest the crosshair anywhere in front of you; optional auto-fire
+    const bot = CHEATS.cheatAimbot && !mapUp ? this._aimbotTarget() : null;
+    if (bot) {
+      const k = 1 - Math.exp(-22 * dt);
+      rig.yaw += angleDiff(rig.yaw, bot.yaw) * k;
+      rig.pitch += (bot.pitch - rig.pitch) * k;
     }
     rig.pitch = clamp(rig.pitch, -1.05, 1.15);
     a.aimYaw = rig.yaw;
@@ -122,6 +137,7 @@ export class PlayerController {
     it.jump = inp.down('Space') || inp.padButton(0);
     it.squid = inp.down('ShiftLeft') || inp.down('ShiftRight') || inp.padValue(6) > 0.3;
     it.fire = inp.mouse.left || inp.padValue(7) > 0.3;
+    if (bot && CHEATS.cheatAutoFire && bot.inRange) it.fire = true;
     it.sub = inp.mouse.right || inp.down('KeyE') || inp.padButton(5);
     it.special = inp.down('KeyF') || inp.down('KeyQ') || inp.padButton(3) || inp.padButton(11);
     this.mapHeld = inp.down('Tab') || inp.down('KeyM') || inp.padButton(8);
@@ -210,6 +226,28 @@ export class PlayerController {
     return ok;
   }
 
+  // Aimbot target: the visible enemy closest to the crosshair within 80° of it (range-limited so it never spins you
+  // toward someone across the map). Returns camera-relative yaw / pitch, or null.
+  _aimbotTarget() {
+    const a = this.a, cam = G.camera;
+    if (!cam || !a.alive) return null;
+    const fwd = cam.getWorldDirection(_fwd);
+    const range = weaponRange(a.weapon);
+    let best = null, bestAng = 80 * DEG;
+    for (const e of G.actors) {
+      if (e.team === a.team || !e.alive || e.anim.form === 'swim') continue;
+      _c.set(e.pos.x, e.pos.y + (e.smoothY || 0) + (e.form === 'squid' ? 0.3 : 0.9), e.pos.z);
+      const d = a.pos.distanceTo(e.pos);
+      if (d > Math.max(range * 1.6, 18)) continue;
+      _v.copy(_c).sub(cam.position).normalize();
+      const ang = Math.acos(clamp(_v.dot(fwd), -1, 1));
+      if (ang > bestAng || !G.physics.los(cam.position, _c)) continue;
+      bestAng = ang;
+      best = { yaw: Math.atan2(_v.x, _v.z), pitch: Math.asin(clamp(_v.y, -1, 1)), inRange: d <= range * 1.05 };
+    }
+    return best;
+  }
+
   // Best enemy near the crosshair for aim assist (angular cone scaled so it covers ~a body width at any range).
   _assistTarget(strength) {
     const as = this.assist;
@@ -228,7 +266,8 @@ export class PlayerController {
       if (a.pos.distanceTo(e.pos) > maxR) continue;
       _v.multiplyScalar(1 / d);
       const ang = Math.acos(clamp(_v.dot(fwd), -1, 1));
-      const cone = clamp(Math.atan2(1.0, d), 2.5 * DEG, 10 * DEG);
+      // above 100 % the catch cone widens too (up to ~2.2× at 500 %)
+      const cone = clamp(Math.atan2(1.0, d), 2.5 * DEG, 10 * DEG) * (1 + Math.max(0, strength - 1) * 0.3);
       if (ang > cone) continue;
       if (!G.physics.los(cam.position, _c)) continue;
       const score = ang / cone + d * 0.01;
