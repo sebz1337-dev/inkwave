@@ -100,6 +100,7 @@ class Game {
     this.input = G.input = new Input(this.R.renderer.domElement);
     this.input.onKey = (e, repeat) => this._onKey(e, repeat);
     this.input.onUnlock = () => this._onPointerUnlock();
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) navigator.keyboard?.unlock?.(); });
     // a click on the game takes the mouse back whenever the round is running without it: after a focus steal while the
     // map was held (no pause detour), after Esc during the intro, or when a resume's re-lock was refused (Chrome turns
     // pointer lock down for ~1 s after the user's Esc, and the Esc key itself is never a user gesture)
@@ -419,6 +420,7 @@ class Game {
     if ('lang' in partial) { setLang(partial.lang); document.title = t('INKWAVE — Turf Riot'); this._rebuildHud(); }
     if ('quality' in partial || 'shadows' in partial || 'bloom' in partial) this.R?.applySettings(this.settings);
     if ('fullscreen' in partial && window.inkwaveNative) window.inkwaveNative.setFullScreen(!!partial.fullscreen);
+    if (partial.fullscreen === false && !window.inkwaveNative) this._exitFullscreen();
     if ('master' in partial || 'music' in partial || 'sfx' in partial) this._applyAudioVolumes();
     if ('colorblind' in partial && G.mode !== 'match') this._setPalette(this._pickPalette());
   }
@@ -478,6 +480,8 @@ class Game {
     // only a live round pauses on focus loss; intro / time's up / judge / results release the mouse on purpose.
     // Holding the map is never a reason to pause (some browsers/embeds steal focus on TAB): relock on the next click.
     if (this.match?.controller?.mapHeld || (this.rig?.mapK ?? 0) > 0) { this._relock = true; return; }
+    // (windowed) a lock lost right after resume() is the browser undoing that request, not the player leaving
+    if (performance.now() - (this._resumedAt ?? -1e9) < 500) { this._relock = true; return; }
     if (G.mode === 'match' && this.match && !this.match.paused && this.match.state === 'playing' && !this.menus?.current) this.pause();
   }
   // pull the fog back while the view is overhead (the stage is ~150 m away up there), restore it exactly after
@@ -701,6 +705,7 @@ class Game {
     G.audio?.init?.();
     G.audio?.duck?.(1, 0.01);   // a new stage picked from the practice pause menu starts un-ducked
     this.input.requestLock();
+    this._enterFullscreen(); // after the lock request: both need this click, and fullscreen uses it up
     this.menus?.show(null);
     await this._fade(1, 350);
     G.music?.stop?.(0.3); this._musicTrack = null;
@@ -899,6 +904,16 @@ class Game {
     this._playMusic(null);
   }
 
+  // In a window Esc belongs to the browser: it drops the pointer lock and a relock then needs a click. Fullscreen with Esc
+  // captured (Keyboard Lock, Chromium) hands Esc to the game instead: pause() releases the lock itself, so resume() can
+  // take it back without a click. Needs the start / rematch click; otherwise play stays windowed with click-to-relock.
+  // (People-11 e2d44b4 port; skipped when running inside the Electron app, which owns fullscreen itself.)
+  _enterFullscreen() {
+    if (window.inkwaveNative || !this.settings.fullscreen || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+    document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => navigator.keyboard?.lock?.(['Escape'])).catch(() => {});
+  }
+  _exitFullscreen() { if (!window.inkwaveNative && document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
+
   pause() {
     if (!this.match || this.match.attract || this.match.paused) return;
     // only a live round (or its intro) can pause — never on top of time's up / judge / results
@@ -920,6 +935,9 @@ class Game {
     this.menus?.show(null);
     this.match.paused = false;
     if (this.match.controller) this.match.controller.enabled = true;
+    // if the browser refuses the lock (windowed Esc, gamepad) the next click takes the mouse
+    this._relock = true;
+    this._resumedAt = performance.now();
     this.input.requestLock();
     G.audio?.duck?.(1, 0.01);
     G.music?.resume?.();
@@ -928,6 +946,7 @@ class Game {
     clearTimeout(this._netEndT);
     if (G.net && G.net.state !== 'offline' && G.net.state !== 'error') G.net.leave();
     this.input.exitLock();
+    this._exitFullscreen();
     this.menus?.show(null);
     await this._fade(1, 350);
     this.hud?.setVisible(false);
@@ -1366,6 +1385,7 @@ class Game {
     if (m.state === 'playing' && a.alive) {
       if (m.controller?.mapHeld) prompt = null;   // the map diorama carries its own super-jump hints
       else if (a.superJumpState) prompt = null;
+      else if (this._relock && !m.paused && !this.input.locked && this.input.lastDevice === 'kbm') prompt = { id: 'Click to take back the mouse' };
       else if (this._lowInkFlash > 0) { this._lowInkFlash -= dt; prompt = { id: 'Low ink! Hold SHIFT in your ink to refill' }; }
       else if (a.specialReady() && (this._hints.specialT = (this._hints.specialT || 0) + dt) > 2) prompt = { id: 'Special ready! Press F' };
       else if (inkF < 0.25 && a.form !== 'squid') prompt = { id: 'Hold SHIFT to swim in your ink and refill' };

@@ -198,8 +198,7 @@ const settingsTabs = () => [
     { key: 'bloom', label: t('settings.row.bloom.label'), type: 'toggle', help: t('settings.row.bloom.help') },
     { key: 'showFps', label: t('settings.row.showFps.label'), type: 'toggle', help: t('settings.row.showFps.help') },
     { key: 'fpsCap', label: t('settings.row.fpsCap.label'), type: 'seg', options: [[0, t('settings.row.fpsCap.max')], [60, '60'], [30, '30']], help: t('settings.row.fpsCap.help') },
-    // desktop app only (the Electron preload provides window.inkwaveNative)
-    ...(typeof window !== 'undefined' && window.inkwaveNative ? [{ key: 'fullscreen', label: t('settings.row.fullscreen.label'), type: 'toggle', help: t('settings.row.fullscreen.help') }] : []),
+    { key: 'fullscreen', label: t('settings.row.fullscreen.label'), type: 'toggle', help: t('settings.row.fullscreen.help') },
   ] },
   { id: 'audio', label: t('settings.tab.audio'), icon: 'speaker', rows: [
     { key: 'master', label: t('settings.row.master.label'), type: 'slider', min: 0, max: 1, step: 0.05, fmt: pctFmt, help: t('settings.row.master.help') },

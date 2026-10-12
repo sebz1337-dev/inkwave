@@ -570,6 +570,7 @@ export const DEFAULT_SETTINGS = {
   bloom: true,
   cameraShake: 1.0,         // 0..1
   showFps: false,
+  fullscreen: true,         // browser matches go fullscreen with Esc captured (People-11 e2d44b4 port)
   fpsCap: 0,                // frame rate limit: 0 = match the display (120 on ProMotion Macs), else 60 / 30
   master: 0.8, music: 0.6, sfx: 0.85,
   colorblind: false,
