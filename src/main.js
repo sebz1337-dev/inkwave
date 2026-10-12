@@ -204,6 +204,8 @@ class Game {
     this.menus?.show(params.has('skipTitle') ? 'main' : 'title');
     // the online hub / lobby set loads in the background once the menus are idle (no arena flash on the first visit)
     if (!params.has('autostart')) setTimeout(() => { if (G.mode === 'menu') this.showcase.preloadLobby?.(); }, 2500);
+    // idle-compile the rest of the kit list, one weapon kind per slice (see _prewarmWeaponBatches)
+    if (!params.has('autostart')) setTimeout(() => { if (G.mode === 'menu') this._prewarmWeaponBatches(); }, 4000);
     this._applyAudioVolumes();
     requestAnimationFrame((t) => this._loop(t));
     if (params.has('autostart')) {
@@ -872,8 +874,40 @@ class Game {
   // Compile every shader variant a squidkid can use this match (all detail tiers, their cross-fades, squid form,
   // weapons) and build every kid's tier meshes while the screen is still faded out, so none of it lands mid-match.
   // Programs are shared, so after the first kid of each weapon the rest are a few ms each.
-  async _warmCharacters(m) {
-    const jobs = m.actors.map((a) => a.character?.warmAll ? Promise.resolve(a.character.warmAll()).catch((e) => console.warn('[inkwave] warm', e)) : null).filter(Boolean);
+  // Extend the pre-warm past the equipped weapon: compile one weapon kind per idle slice (WEAPON_ORDER)
+  // with fresh programs per kind. Stops the moment the player does anything (navigation/input would turn a
+  // warm-up into a hitch), when a match starts, or when the list is done — and never touches audio
+  // (no AudioContext before a user gesture, ever). (JONI f007bc9 port; runs when settings.prewarm is on.)
+  _prewarmWeaponBatches() {
+    if (!this.settings?.prewarm) return;
+    const queue = WEAPON_ORDER.filter((id) => id !== (this.profile.weapon || 'shooter'));
+    let i = 0, running = false;
+    const stop = () => { removeEventListener('pointerdown', stop, true); removeEventListener('keydown', stop, true); running = false; };
+    addEventListener('pointerdown', stop, true);
+    addEventListener('keydown', stop, true);
+    const step = () => {
+      if (!running || i >= queue.length) return stop();
+      if (G.mode !== 'menu') return stop();
+      const id = queue[i++];
+      try {
+        const c = new this.CharacterClass({
+          color: G.teamColors[0].clone(), weapon: id, style: { ...(this.profile.style || {}) },
+          name: 'prewarm', isLocal: false,
+        });
+        c.root.visible = false;
+        G.scene.add(c.root);
+        Promise.resolve(c.warmAll?.()).catch(() => {}).then(
+          () => { G.scene.remove(c.root); c.dispose?.(); },
+          () => { G.scene.remove(c.root); c.dispose?.(); });
+      } catch { /* a weapon that fails to build warm simply stays cold; the match warms on start */ }
+      // idle slice: cap the batch to one kid per frame-sized gap so the menu keeps animating smoothly
+      setTimeout(step, 1600);
+    };
+    running = true;
+    setTimeout(step, 2500); // let the equipped-weapon warm above finish first
+  }
+
+  async _warmCharacters(m) {    const jobs = m.actors.map((a) => a.character?.warmAll ? Promise.resolve(a.character.warmAll()).catch((e) => console.warn('[inkwave] warm', e)) : null).filter(Boolean);
     if (m.boss) jobs.push(Promise.resolve(m.boss.model.ready).then(() => Promise.all(m.boss.warm().map((o) => G.renderer.compileAsync(o, G.camera, G.scene)))).catch((e) => console.warn('[inkwave] boss warm', e)));
     if (jobs.length) await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, 8000))]);   // never hang a load
   }

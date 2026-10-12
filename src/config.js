@@ -581,6 +581,7 @@ export const DEFAULT_SETTINGS = {
   bloom: true,
   cameraShake: 1.0,         // 0..1
   showFps: false,
+  prewarm: true,            // idle-compile the kit list in menu so loadout switches never hitch (JONI f007bc9 port)
   fullscreen: true,         // browser matches go fullscreen with Esc captured (People-11 e2d44b4 port)
   fpsCap: 0,                // frame rate limit: 0 = match the display (120 on ProMotion Macs), else 60 / 30
   master: 0.8, music: 0.6, sfx: 0.85,
