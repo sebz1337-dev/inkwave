@@ -1509,7 +1509,7 @@ export class HUD {
     if (rising && T.bubbles.length < 14 && Math.random() < dt * (ink - T.prevInk > dt * 0.2 ? 40 : 12)) T.bubbles.push({ x: 0.2 + Math.random() * 0.6, y: 0, r: 0.6 + Math.random() * 1.4, v: 0.5 + Math.random() * 0.7 });
     T.prevInk = ink;
     T.level += (ink - T.level) * (1 - Math.exp(-dt * 14));
-    if (idle && !T.bubbles.length && Math.abs(T.sloshV) < 0.01) return;
+    if ((idle && !T.bubbles.length && Math.abs(T.sloshV) < 0.01) || L.spect) return;
     this._drawTank(dt, sub, low, nosub);
   }
 
