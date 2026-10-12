@@ -257,6 +257,7 @@ class Game {
     this.layoutId = layoutId; this.worldKey = worldKey;
     this.mapDef = map;
     const q = QUALITY[this.settings.quality] || QUALITY.high;
+    const step = Log.steps('build'); // per-chunk timings (JONI c3c753b port)
     // set dressing first: solid props hand back collision boxes that become part of the level (physics, nav, paint)
     const colliders = [];
     if (this.PropKit) {
@@ -270,8 +271,11 @@ class Game {
         this.props.build();
       } catch (e) { console.error('[inkwave] props failed', e); this.props = null; }
     }
+    step('props');
+    await nextFrame(); // the loading overlay can only repaint between chunks
     const level = (G.level = new Level(layoutFor(MAP_LAYOUTS[layoutId], mode), colliders));
     G.physics = new Physics(level);
+    step('level');
     const lightmap = await this._loadLightmap(level, worldKey);
     G.paint = new PaintSystem(G.renderer, level, { atlasSize: q.paintAtlas, maxDensity: q.paintAtlas >= 4096 ? 30 : 18 });
     this.murals.userData.setStage?.(layoutId);   // stage decals (murals.js) before the material reads the table
@@ -287,11 +291,19 @@ class Game {
     this.grateMesh = new THREE.Mesh(gg, this.grateMat);
     this.grateMesh.receiveShadow = true; this.grateMesh.visible = gg.index.count > 0;
     scene.add(this.grateMesh);
+    step('paint');
+    await nextFrame();
     this.decor = new Decor(scene, level);
     G.nav = new NavGraph(level, G.physics);
     this.minimap = new Minimap(level, G.paint);
+    step('nav');
+    await nextFrame();
     if (G.env?.rebuildForArena) G.env.rebuildForArena(level.bounds, this._footprint(level));
     else if (G.env?.setFootprint) G.env.setFootprint(this._footprint(level));
+    // precompile the new stage's shaders behind the loading screen: without it every program
+    // compiles on the first rendered frames of the intro — transition stutter on fast GPUs
+    try { await G.renderer.compileAsync(scene, G.camera); } catch { G.renderer.compile(scene, G.camera); }
+    step('shaders');
     if (G.teamColors[0]) this._setPalette(this.palette || this._pickPalette());
   }
 
