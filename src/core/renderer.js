@@ -132,6 +132,9 @@ export class Renderer {
     this.gtao = null;
     if (q.ao) {
       const ao = (this.gtao = new GTAOPass(this.scene, this.camera, w, h));
+      // half-res AO: a soft term (the level also has baked AO), and full res cost ~3 ms/frame at 2560x1600
+      const aoSize = ao.setSize.bind(ao);
+      ao.setSize = (aw, ah) => aoSize(Math.max(1, aw >> 1), Math.max(1, ah >> 1));
       ao.output = GTAOPass.OUTPUT.Default;
       ao.blendIntensity = 0.8;   // never crush to black: fully enclosed spots (tunnel mouths, under the overpass) keep 20 % of their light
       // contact AO: a metre-scale radius so crates, planters and pillar feet sit on the deck (it multiplies the lit
@@ -199,7 +202,6 @@ export class Renderer {
     this._w = w; this._h = h;
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
-    this.gtao?.setSize(w, h);
     this.grade.uniforms.uAspect.value = w / h;
     if (this.camera) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
   }
