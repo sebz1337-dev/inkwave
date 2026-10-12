@@ -116,6 +116,8 @@
 .iw-cursor__ring { position: absolute; inset: 0; border-radius: inherit; border: 3px solid #fff;
   box-shadow: 0 0 0 3px var(--k), 0 0 0 6px rgba(var(--a-rgb), .6), 0 0 calc(var(--u) * 1.8) rgba(var(--a-rgb), .55);
   animation: iw-cursor-pulse 1.3s ease-in-out infinite; }
+/* the pulse animates box-shadow (a repaint per frame): hold it while the cursor is hidden, e.g. all through a match */
+.iw-cursor:not(.is-on) .iw-cursor__ring { animation-play-state: paused; }
 .iw-cursor__glow { position: absolute; inset: -3px; border-radius: inherit; background:
   linear-gradient(90deg, #fff 0 14px, transparent 14px) top left / 50% 3px no-repeat,
   linear-gradient(270deg, #fff 0 14px, transparent 14px) bottom right / 50% 3px no-repeat; opacity: 0; }
