@@ -13,7 +13,7 @@
 //  · jump buffer + coyote time, apex hang, hard-landing recovery, fire buffer across form changes
 import * as THREE from 'three';
 import { G, emit, clamp, damp, angleDiff, smoothstep } from '../core/ctx.js';
-import { PLAYER, WEAPONS, SPECIALS, SUBS } from '../config.js';
+import { PLAYER, WEAPONS, SPECIALS, SUBS, WEIGHT } from '../config.js';
 import { makeContacts, Hit, GroundHit, WALKABLE } from './physics.js';
 import { WeaponRunner } from './weapons.js';
 import { MAIN_KITS } from './kits/registry.js';
@@ -439,7 +439,7 @@ export class Actor {
     // ---- grounded: speed + heading model
     let vt, A, aIn, inKnee, outKnee, D, dMin, dKnee, W;
     if (isSquid && this.submerged) {
-      vt = P.swimSpeed; A = P.swimAccel; aIn = P.swimAccelIn; inKnee = 3; outKnee = P.swimOutKnee; D = P.swimDecel; dMin = 0.5; dKnee = 4; W = P.swimTurn;
+      vt = P.swimSpeed * (WEIGHT[this.weapon.weight] || WEIGHT.mid).swim; A = P.swimAccel; aIn = P.swimAccelIn; inKnee = 3; outKnee = P.swimOutKnee; D = P.swimDecel; dMin = 0.5; dKnee = 4; W = P.swimTurn;
     } else if (isSquid) {
       vt = P.squidDrySpeed; A = P.squidAccel; aIn = 0.6; inKnee = 1; outKnee = 0.3; D = P.squidDecel; dMin = 0.5; dKnee = 2; W = P.squidTurn;
     } else {

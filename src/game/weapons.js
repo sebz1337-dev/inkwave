@@ -8,7 +8,7 @@
 // blooms with sustained fire, recovers when you let go). Hit tests use the victim's visual (smoothed) body.
 import * as THREE from 'three';
 import { G, emit, clamp, lerp, smoothstep } from '../core/ctx.js';
-import { WEAPONS, SUB, SPECIALS, PLAYER } from '../config.js';
+import { WEAPONS, SUB, SPECIALS, PLAYER, WEIGHT } from '../config.js';
 import { Physics, Hit } from './physics.js';
 import { MAIN_KITS, SUB_KITS } from './kits/registry.js';
 import { CHEATS, cheatMove } from './cheats.js';
@@ -89,7 +89,7 @@ export class WeaponRunner {
     if (this.flickRecover > 0) return lerp(PLAYER.runSpeed, w.moveSpeedFiring * 0.6, this.flickRecover / 0.18);
     if (this.charging) return lerp(PLAYER.runSpeed * 0.7, w.moveSpeedFiring, Math.min(1, this.charge * 3));
     if (this.firingT > 0) return w.moveSpeedFiring;
-    return PLAYER.runSpeed;
+    return PLAYER.runSpeed * (WEIGHT[w.weight] || WEIGHT.mid).run; // light weapons run faster, heavy ones slower
   }
 
   // current shot cone half-angle in degrees (HUD crosshair should use this)
@@ -1625,6 +1625,9 @@ export class Projectiles {
           _v.copy(p.prev).lerp(p.pos, _res.t);
           let dmg = p.damage;
           if (p.type === 'drop') dmg = lerp(p.damage, p.dmgFar, clamp(p.start.distanceTo(_v) / 7, 0, 1));
+          // shooter / splatling rounds: full damage along the straight part of the flight; once the round has been
+          // falling a while the damage tapers to half (Splatoon's distance falloff)
+          else if (p.type === 'shot' && p.age > p.straight * 1.6) dmg *= lerp(1, 0.5, clamp((p.age - p.straight * 1.6) / 0.16, 0, 1));
           // bucket: full damage at any range, less only when the target stands below the thrower
           if (p.belowFalloff) dmg *= 1 - clamp((p.start.y - (e.pos.y + 0.8) - 0.5) * p.belowFalloff, 0, p.belowFalloffMax);
           // slosher: one direct hit per throw per victim (the rest of the wave still splashes on them, harmlessly)

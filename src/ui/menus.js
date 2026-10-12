@@ -1885,7 +1885,7 @@ export class Menus {
       const first = shown === id && !entered;
       shown = id;
       const w = Ws[id], eqW = Ws[equipped];
-      kind.textContent = t(classOf(w)).toUpperCase();
+      kind.textContent = t(classOf(w)).toUpperCase() + ' · ' + ({ light: 'LIGHT', mid: 'MID', heavy: 'HEAVY' }[w.weight] || 'MID');
       nm.textContent = t(w.name);
       blurb.textContent = t(w.blurb || '');
       detail.classList.toggle('is-equipped', id === equipped);

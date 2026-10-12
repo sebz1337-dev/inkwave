@@ -26,8 +26,8 @@ export const PLAYER = {
   squidHeight: 0.55,
   runSpeed: 6.0,
   squidDrySpeed: 2.9,    // squid hopping on unpainted ground
-  swimSpeed: 11.8,       // squid submerged in own ink
-  enemyInkSpeed: 1.9,
+  swimSpeed: 12.0,       // squid submerged in own ink (Splatoon: swim ≈ 2 × run)
+  enemyInkSpeed: 1.5,    // wading in enemy ink (Splatoon: ≈ ¼ of the run speed)
   climbSpeed: 7.5,
   accelGround: 42,
   accelAir: 14,
@@ -37,15 +37,15 @@ export const PLAYER = {
   gravity: 25,
   maxFall: 40,
   inkMax: 100,
-  inkRefillSwim: 42,     // per second while submerged
-  inkRefillKid: 9,       // per second in kid form after idle delay
+  inkRefillSwim: 34,     // per second while submerged (Splatoon: an empty tank fills in ~3 s)
+  inkRefillKid: 10,      // per second in kid form after idle delay (Splatoon: ~10 s)
   inkRefillDelay: 0.9,
   enemyInkDps: 20,       // damage/s while standing in enemy ink ...
   enemyInkDamageCap: 40, // ... never takes you below (hp - cap) from ink alone
   regenDelay: 1.3,
   regenRate: 22,
   regenRateSwim: 60,
-  respawnTime: 5.5,
+  respawnTime: 7.0,      // Splatoon: ~8.5 s from the splat to the spawn pad; a little shorter keeps 3-min rounds busy
   // share of the special gauge you keep when splatted (a special running at the time ends and the gauge restarts
   // from this share of full); the rest is lost, and what's kept carries through the respawn
   specialKeepOnSplat: 0.5,
@@ -115,7 +115,7 @@ export const WEAPONS = {
     special: 'kraken', specialCost: 170, sub: 'sticky',
   },
   charger: {
-    id: 'charger', name: 'Glint Charger', kind: 'charger', class: 'Charger',
+    id: 'charger', name: 'Glint Charger', kind: 'charger', class: 'Charger', weight: 'heavy',
     blurb: 'Hold to charge, release for a long piercing line. Full charge splats.',
     stats: { range: 1.0, damage: 1.0, rate: 0.25, mobility: 0.35, paint: 0.45 },
     chargeTime: 1.0, rangeMin: 11, rangeMax: 27, damageMin: 40, damageMax: 160,
@@ -146,7 +146,7 @@ export const WEAPONS = {
     special: 'blower', specialCost: 180, sub: 'sprinkler',
   },
   spinner: {
-    id: 'spinner', name: 'Squall Spinner', kind: 'spinner', class: 'Spinner', anim: 'charger',
+    id: 'spinner', name: 'Squall Spinner', kind: 'spinner', class: 'Spinner', anim: 'charger', weight: 'heavy',
     blurb: 'Spin up, then unleash a stream of ink. A full spin reaches farthest and fires longest.',
     stats: { range: 0.88, damage: 0.55, rate: 1.0, mobility: 0.4, paint: 0.7 },
     chargeTime: 1.0, inkFull: 24, burstMin: 0.35, burstMax: 1.8, fireInterval: 0.05,
@@ -156,7 +156,7 @@ export const WEAPONS = {
     special: 'crab', specialCost: 200, sub: 'curtain',
   },
   twins: {
-    id: 'twins', name: 'Twinfire Pistols', kind: 'twins', class: 'Pistols', anim: 'shooter',
+    id: 'twins', name: 'Twinfire Pistols', kind: 'twins', class: 'Pistols', anim: 'shooter', weight: 'light',
     blurb: 'Paired pistols. Jump while firing to dodge-roll; stand still after a roll for rapid, longer-range fire. Walking returns to dual mode.',
     stats: { range: 0.4, damage: 0.4, rate: 0.95, mobility: 0.9, paint: 0.55 },
     fireInterval: 0.085, damage: 30, inkPerShot: 0.85, projSpeed: 31, straightTime: 0.11, range: 11,
@@ -167,7 +167,7 @@ export const WEAPONS = {
     special: 'bubbler', specialCost: 180, sub: 'seeker',
   },
   brush: {
-    id: 'brush', name: 'Swish Brush', kind: 'brush', class: 'Brush', anim: 'roller',
+    id: 'brush', name: 'Swish Brush', kind: 'brush', class: 'Brush', anim: 'roller', weight: 'light',
     blurb: 'Dash along the ground leaving a thin trail, or swipe side to side to flick a spray of small globs.',
     stats: { range: 0.2, damage: 0.35, rate: 1.0, mobility: 1.0, paint: 0.5 },
     brushSpeed: 7.4, brushWidth: 0.95, brushInkPerMeter: 0.32, brushDamage: 30, brushHitCd: 0.35,
@@ -218,7 +218,7 @@ export const WEAPONS = {
     special: 'strike', specialCost: 190, sub: 'waddle',
   },
   blade: {
-    id: 'blade', name: 'Brine Cutlass', kind: 'blade', class: 'Cutlass', anim: 'blade',
+    id: 'blade', name: 'Brine Cutlass', kind: 'blade', class: 'Cutlass', anim: 'blade', weight: 'light',
     blurb: 'Tap for quick slashes that fling a crescent of ink. Hold to charge an overhead cut that sends a long ink wave. The blade itself hits hard: a charged cut splats in one hit.',
     stats: { range: 0.35, damage: 0.85, rate: 0.75, mobility: 0.85, paint: 0.55 },
     // (kits/blade.js; pose family HOLD.blade in character.js) range = the quick cut's droplet reach (aim assist, bots)
@@ -500,8 +500,16 @@ export const ZONES = {
   sampleHz: 5,                // coverage checks per second
 };
 
-export const DIFFICULTY = {
-  // aimOmega / aimTurn: bot aim spring stiffness (rad/s) and turn-rate cap (rad/s) — see bots.js
+// Weapon weight (Splatoon's light / middle / heavy classes): scales the plain run speed and the swim speed only —
+// each weapon's firing / charging speeds are its own. Ratios from Splatoon 3 (run 1.04 / 0.96 / 0.88, swim 2.02 /
+// 1.92 / 1.728 distance units per frame). (anfaal f59d786 port; kinds mapped to this tree's arsenal.)
+export const WEIGHT = {
+  light: { run: 1.083, swim: 1.052 },
+  mid: { run: 1, swim: 1 },
+  heavy: { run: 0.917, swim: 0.9 },
+};
+
+export const DIFFICULTY = {  // aimOmega / aimTurn: bot aim spring stiffness (rad/s) and turn-rate cap (rad/s) — see bots.js
   easy:   { id: 'easy',   name: 'Chill',  reaction: 0.55, aimError: 0.11, fireDiscipline: 0.55, awareness: 16, aimOmega: 9,  aimTurn: 7 },
   normal: { id: 'normal', name: 'Fresh',  reaction: 0.32, aimError: 0.06, fireDiscipline: 0.8,  awareness: 21, aimOmega: 13, aimTurn: 10 },
   hard:   { id: 'hard',   name: 'Fierce', reaction: 0.17, aimError: 0.03, fireDiscipline: 0.95, awareness: 26, aimOmega: 18, aimTurn: 14 },
