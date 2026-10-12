@@ -285,7 +285,8 @@
   box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--k), 0 calc(var(--u) * .45) 0 6px rgba(0, 0, 0, .4), inset 0 3px 6px rgba(0, 0, 0, .5); }
 .iw-progress__fill { position: absolute; inset: 0; border-radius: 999px; transform: translateX(-100%); will-change: transform;
   background: linear-gradient(180deg, var(--a-light) 0%, var(--a) 40%, var(--a-dark) 100%); }
-.iw-progress__wave { position: absolute; inset: 0; border-radius: inherit; background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .22) 0 10px, transparent 10px 22px); animation: iw-stripes .7s linear infinite; }
+.iw-progress__wave { position: absolute; inset: 0; border-radius: inherit; animation: iw-stripes .7s linear infinite;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .22) 0 calc(24px * sin(115deg) * 10 / 22), transparent 0 calc(24px * sin(115deg))) 0 0 / 24px 100%; }
 .iw-progress__edge { position: absolute; left: calc(var(--u) * .8); right: calc(var(--u) * .8); top: 18%; height: 20%; border-radius: 999px; background: rgba(255, 255, 255, .45); }
 .iw-progress__pct { min-width: 4ch; font: 400 calc(var(--u) * 1.9) / 1 'Titan One', sans-serif; -webkit-text-stroke: .16em var(--k); paint-order: stroke fill; }
 .iw-loading__label { font: 700 var(--fs-m) / 1 'Rubik', sans-serif; letter-spacing: .06em; color: rgba(255, 255, 255, .8); text-transform: uppercase; }
