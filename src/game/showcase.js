@@ -2844,7 +2844,8 @@ export class Showcase {
     const key = [req.kind || 'head', req.size | 0 || 128, '#' + this._c2.set(req.color || this.color).getHexString(), req.weapon || '',
       ...Object.keys(req.style || {}).sort().map((k) => `${k}:${req.style[k]}`)].join('|');
     const hit = this._pcache.get(key);
-    if (hit) { cb(copyCanvas(hit)); return null; }
+    // cached: still answer on the next frame, after the screen asking for it is in the document (before its first paint)
+    if (hit) { let live = true; requestAnimationFrame(() => { if (live) cb(copyCanvas(hit)); }); return { cancel: () => { live = false; } }; }
     let q = this._pq.find((x) => x.key === key);
     if (q) q.cbs.push(cb); else this._pq.push((q = { key, req: { ...req, style: { ...(req.style || {}) } }, cbs: [cb] }));
     // handle: cancel() drops this request (a job nobody waits for any more is skipped, never rendered)
