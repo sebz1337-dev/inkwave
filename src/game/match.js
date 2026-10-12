@@ -7,6 +7,7 @@ import { randomStyle } from './character-style.js';
 import { Actor } from './actor.js';
 import { BotBrain } from './bots.js';
 import { PlayerController } from './player.js';
+import { CHEATS, cheatEnemyFrozen, cheatEnemyPassive } from './cheats.js';
 import { BossMode, BOSS_MODE } from '../boss/bossMode.js';
 
 const _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
@@ -199,7 +200,7 @@ export class Match {
           if (this.state !== 'playing') break;         // knockout / overtime decided it
           if (this.zones.overtime) break;              // the clock stays at 0 through overtime
         }
-        this.time -= dt;
+        this.time -= (CHEATS.cheatTimer && !this.attract) ? 0 : dt;
         if (!this.attract) {
           if (!this.lastMinuteFired && this.time <= 60 && this.duration > 60) { this.lastMinuteFired = true; emit('match:oneminute', {}); }
           const c = Math.ceil(this.time);
@@ -220,8 +221,9 @@ export class Match {
     const live = this.state === 'playing';
     for (const a of this.actors) {
       if (a.bot) {
-        if (live) a.bot.update(dt);
+        if (live && !cheatEnemyFrozen(a)) a.bot.update(dt);
         else { a.intent.move.set(0, 0, 0); a.intent.fire = a.intent.squid = a.intent.sub = a.intent.jump = a.intent.special = false; }
+        if (live && cheatEnemyPassive(a)) { a.intent.fire = a.intent.sub = a.intent.special = false; }
       }
     }
     const nm = G.netm;

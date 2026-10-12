@@ -213,6 +213,29 @@ const settingsTabs = () => [
     { key: 'difficulty', label: t('settings.row.difficulty.label'), type: 'seg', options: null, help: t('settings.row.difficulty.help') },
     { key: 'matchLength', label: t('settings.row.matchLength.label'), type: 'seg', options: null, help: t('settings.row.matchLength.help') },
   ] },
+  // cheats (src/game/cheats.js): session-only — they start off on every load and are never saved
+  { id: 'cheats', label: t('settings.tab.cheats'), icon: 'star', rows: [
+    { key: 'cheatGod', label: t('settings.row.cheatGod.label'), type: 'toggle', help: t('settings.row.cheatGod.help') },
+    { key: 'cheatTeamGod', label: t('settings.row.cheatTeamGod.label'), type: 'toggle', help: t('settings.row.cheatTeamGod.help') },
+    { key: 'cheatInk', label: t('settings.row.cheatInk.label'), type: 'toggle', help: t('settings.row.cheatInk.help') },
+    { key: 'cheatSpecial', label: t('settings.row.cheatSpecial.label'), type: 'toggle', help: t('settings.row.cheatSpecial.help') },
+    { key: 'cheatRespawn', label: t('settings.row.cheatRespawn.label'), type: 'toggle', help: t('settings.row.cheatRespawn.help') },
+    { key: 'cheatSteady', label: t('settings.row.cheatSteady.label'), type: 'toggle', help: t('settings.row.cheatSteady.help') },
+    { key: 'cheatSpeed', label: t('settings.row.cheatSpeed.label'), type: 'seg', options: [[1, '×1'], [1.5, '×1.5'], [2, '×2']], help: t('settings.row.cheatSpeed.help') },
+    { key: 'cheatJump', label: t('settings.row.cheatJump.label'), type: 'seg', options: [[1, '×1'], [1.4, '×1.4'], [2, '×2']], help: t('settings.row.cheatJump.help') },
+    { key: 'cheatGravity', label: t('settings.row.cheatGravity.label'), type: 'seg', options: [[1, 'Normal'], [0.6, 'Light'], [0.3, 'Moon']], help: t('settings.row.cheatGravity.help') },
+    { key: 'cheatFire', label: t('settings.row.cheatFire.label'), type: 'seg', options: [[1, '×1'], [2, '×2'], [3, '×3']], help: t('settings.row.cheatFire.help') },
+    { key: 'cheatDamage', label: t('settings.row.cheatDamage.label'), type: 'seg', options: [[1, '×1'], [2, '×2'], [100, 'One hit']], help: t('settings.row.cheatDamage.help') },
+    { key: 'cheatPaint', label: t('settings.row.cheatPaint.label'), type: 'seg', options: [[1, '×1'], [1.5, '×1.5'], [2, '×2']], help: t('settings.row.cheatPaint.help') },
+    { key: 'cheatFreeze', label: t('settings.row.cheatFreeze.label'), type: 'toggle', help: t('settings.row.cheatFreeze.help') },
+    { key: 'cheatPassive', label: t('settings.row.cheatPassive.label'), type: 'toggle', help: t('settings.row.cheatPassive.help') },
+    { key: 'cheatTimer', label: t('settings.row.cheatTimer.label'), type: 'toggle', help: t('settings.row.cheatTimer.help') },
+    { key: 'cheatSlowmo', label: t('settings.row.cheatSlowmo.label'), type: 'seg', options: [[1, '×1'], [0.75, '×0.75'], [0.5, '×0.5']], help: t('settings.row.cheatSlowmo.help') },
+    { key: '_cheat_refill', action: 'refill', label: t('settings.row._cheat_refill.label'), type: 'action', help: t('settings.row._cheat_refill.help') },
+    { key: '_cheat_paint', action: 'paint', label: t('settings.row._cheat_paint.label'), type: 'action', help: t('settings.row._cheat_paint.help') },
+    { key: '_cheat_time', action: 'time', label: t('settings.row._cheat_time.label'), type: 'action', help: t('settings.row._cheat_time.help') },
+    { key: '_cheat_end', action: 'end', label: t('settings.row._cheat_end.label'), type: 'action', help: t('settings.row._cheat_end.help') },
+  ] },
 ];
 const tabBlurbs = () => ({
   general: t('settings.tab.general.blurb'),
@@ -220,6 +243,7 @@ const tabBlurbs = () => ({
   video: t('settings.tab.video.blurb'),
   audio: t('settings.tab.audio.blurb'),
   gameplay: t('settings.tab.gameplay.blurb'),
+  cheats: t('settings.tab.cheats.blurb'),
 });
 
 const durLabel = (s) => (s < 120 ? t('settings.dur.sec', { n: s }) : t('settings.dur.min', { n: Math.round(s / 60) }));
@@ -2215,6 +2239,10 @@ export class Menus {
       tab.rows.forEach((r, i) => {
         let ctrl;
         if (r.type === 'link') ctrl = { el: h('span', { class: 'iw-row__link' }, t('common.view'), h('i', { html: GLYPHS.next })), accept: () => { this._sfx('ui_click'); this._go('howto'); } };
+        else if (r.type === 'action') {
+          const el = h('span', { class: 'iw-row__link' }, t('settings.action.run'), h('i', { html: GLYPHS.next }));
+          ctrl = { el, accept: () => { const ok = !!safeCall(() => this.api.cheat && this.api.cheat(r.action)); this._sfx(ok ? 'ui_confirm' : 'ui_error'); restartAnim(el, 'is-pick'); } };
+        }
         else if (r.type === 'slider') ctrl = this._slider(r, s[r.key]);
         else if (r.type === 'toggle') ctrl = this._toggle(r, s[r.key]);
         else if (r.type === 'select') ctrl = this._select(r.options, s[r.key], (v) => this._setSetting(r.key, v));
@@ -2225,12 +2253,12 @@ export class Menus {
           ctrl = this._seg(options, s[r.key], (v) => this._setSetting(r.key, v));
           ctrl.accept = ctrl.cycle;
         }
-        const row = h('div', { class: 'iw-row iw-rowin' + (r.type === 'link' ? ' iw-row--link' : ''), style: { '--i': i, '--dir': dirSign } },
+        const row = h('div', { class: 'iw-row iw-rowin' + (r.type === 'link' || r.type === 'action' ? ' iw-row--link' : ''), style: { '--i': i, '--dir': dirSign } },
           h('div', { class: 'iw-row__label' }, h('i', { class: 'iw-row__pip' }), r.label),
           h('div', { class: 'iw-row__ctrl' }, ctrl.el));
         row._key = r.key;
         this._bind(row, { id: 'set-' + r.key, type: 'row', accept: ctrl.accept, adjust: ctrl.adjust });
-        if (r.type !== 'link') controls.set(r.key, ctrl);
+        if (r.type !== 'link' && r.type !== 'action') controls.set(r.key, ctrl);
         rowsEl.appendChild(row);
       });
     };
@@ -3821,6 +3849,7 @@ export class Menus {
     const items = [
       { id: 'resume', label: online ? 'BACK TO THE MATCH' : 'RESUME', icon: GLYPHS.play, cls: 'iw-btn--menu iw-btn--primary', accept: () => this._resume(), sound: null },
       { id: 'settings', label: 'SETTINGS', icon: GLYPHS.gear, cls: 'iw-btn--menu', accept: () => this._go('settings') },
+      { id: 'cheats', label: 'CHEATS', icon: GLYPHS.star, cls: 'iw-btn--menu', accept: () => { this._settingsTab = settingsTabs().findIndex((x) => x.id === 'cheats'); this._go('settings'); } },
       { id: 'howto', label: 'HOW TO PLAY', icon: GLYPHS.question, cls: 'iw-btn--menu', accept: () => this._go('howto') },
       { id: 'quit', label: online ? 'LEAVE ROOM' : 'QUIT MATCH', icon: online ? GLYPHS.exit : GLYPHS.close, cls: 'iw-btn--menu iw-btn--danger', accept: () => this._openModal({
         title: online ? 'LEAVE ROOM?' : 'QUIT MATCH?', danger: true,
@@ -3836,7 +3865,7 @@ export class Menus {
         ],
       }) },
     ];
-    const tilts = [-1.8, 1.2, -1, 1.4];
+    const tilts = [-1.8, 1.2, 1, -1, 1.4];
     const btns = items.map((it, i) => { const b = this._btn({ ...it, tilt: tilts[i] }); b.classList.add('iw-in', 'iw-in--left'); return b; });
 
     // ---- live match panel

@@ -26,6 +26,7 @@ import { SpecialSystem } from './game/specials.js';
 import { CameraRig } from './game/cameraRig.js';
 import { Match } from './game/match.js';
 import { Minimap } from './game/minimap.js';
+import { CHEATS, CHEAT_DEFAULTS, isCheatKey, tickCheats, tickFill, runCheat } from './game/cheats.js';
 import { Showcase } from './game/showcase.js';
 import { ZoneMarks } from './fx/zoneMarks.js';
 import { BOSS_MODE } from './boss/bossMode.js';
@@ -42,7 +43,7 @@ const REFRESH_RATES = [30, 48, 50, 60, 75, 90, 100, 120, 144, 165, 240]; // comm
 
 // ------------------------------------------------------------------------------------------ persistence
 function loadJSON(key, def) { try { const v = JSON.parse(localStorage.getItem(key)); return v ? { ...def, ...v } : { ...def }; } catch { return { ...def }; } }
-function saveJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } }
+function saveJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v, (k, x) => (isCheatKey(k) ? undefined : x))); } catch { /* private mode */ } }
 const DEFAULT_PROFILE = { name: 'Player', level: 1, xp: 0, wins: 0, matches: 0, totalTurf: 0, weapon: 'shooter' };
 
 async function loadModule(path, stubName) {
@@ -59,7 +60,7 @@ class Game {
     const t0 = performance.now();
     // real top-down thumbnails for the stage cards, generated from each layout's geometry
     for (const m of MAPS) { try { m.thumb = layoutThumbSVG(MAP_LAYOUTS[m.layout || m.id], m.theme); } catch (e) { console.warn('thumb', m.id, e); } }
-    this.settings = G.settings = loadJSON('inkwave.settings', DEFAULT_SETTINGS);
+    this.settings = G.settings = { ...loadJSON('inkwave.settings', DEFAULT_SETTINGS), ...CHEAT_DEFAULTS };
     setLang(this.settings.lang || 'en');   // before any menu renders (src/i18n/strings.js)
     document.title = t('INKWAVE — Turf Riot');
     // desktop app: the window's fullscreen state is owned by the native shell; mirror it into settings for the menu
@@ -370,6 +371,7 @@ class Game {
       weapons: WEAPONS, weaponOrder: WEAPON_ORDER, specials: SPECIALS, specialOrder: SPECIAL_ORDER, sub: SUB.bomb, subs: SUBS, subOrder: SUB_ORDER, maps: MAPS, difficulties: DIFFICULTY,
       getSettings: () => ({ ...self.settings }),
       setSettings: (partial) => self._setSettings(partial),
+      cheat: (id) => runCheat(id),
       getProfile: () => {
         const p = self.profile;
         return { ...p, played: p.matches, xpToNext: PROGRESSION.xpForLevel(p.level) };
@@ -416,6 +418,7 @@ class Game {
 
   _setSettings(partial) {
     Object.assign(this.settings, partial);
+    for (const k in partial) if (isCheatKey(k)) CHEATS[k] = partial[k];
     saveJSON('inkwave.settings', this.settings);
     if ('lang' in partial) { setLang(partial.lang); document.title = t('INKWAVE — Turf Riot'); this._rebuildHud(); }
     if ('quality' in partial || 'shadows' in partial || 'bloom' in partial) this.R?.applySettings(this.settings);
@@ -1111,7 +1114,8 @@ class Game {
     if (this.fpsAcc > 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
     this._dynRes(dt);
     dt = Math.min(dt, 1 / 24);
-    this._frame(dt);
+    // slow motion (cheat) for the match only: menus and the attract round keep their pace
+    this._frame(G.match && !G.match.attract ? dt * (CHEATS.cheatSlowmo || 1) : dt);
   }
 
   // Display refresh estimate: 10th percentile of raw rAF intervals (rAF fires every vsync while frames keep up, and
@@ -1170,6 +1174,7 @@ class Game {
       const sub = dt > 1 / 45 ? 2 : 1; // substep physics on slow frames
       for (let i = 0; i < sub; i++) m.update(dt / sub);
       if (!m.paused) { G.projectiles.update(dt); G.subs.update(dt); G.specials.update(dt); }
+      if (!m.paused) { tickCheats(); tickFill(this._cheatV || (this._cheatV = new THREE.Vector3())); }
       if (m.attract) this._updateAttract(dt);
       else if (m.state === 'playing' && m.local?.alive && this.rig.mode !== 'follow' && this.rig.mode !== 'path') this.rig.follow(m.local, true);
     }
