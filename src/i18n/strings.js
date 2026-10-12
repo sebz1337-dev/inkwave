@@ -105,6 +105,8 @@ const EN = {
   'settings.row.cheatAimbot.help': 'Your aim snaps onto the enemy nearest your crosshair, as long as you can see them.',
   'settings.row.cheatAutoFire.label': 'Auto-fire',
   'settings.row.cheatAutoFire.help': 'With the aimbot on, your weapon fires by itself whenever a locked enemy is in range.',
+  'settings.row.cheatAimFov.label': 'Aimbot field',
+  'settings.row.cheatAimFov.help': 'How far from your crosshair the aimbot looks for targets. 360° turns you toward enemies behind you.',
   'settings.row.cheatSteady.label': 'Perfect aim',
   'settings.row.cheatSteady.help': 'No shot spread: every shot flies exactly where you aim.',
   'settings.row.cheatSpeed.label': 'Move speed',

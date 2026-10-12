@@ -1161,7 +1161,7 @@ class Game {
   _frame(dt) {
     const tA = performance.now();
     G.renderer.info.reset();
-    G.time += dt;
+    G.time += dt; G.frameDt = dt; // aimbot flies its test shots with the step the projectiles use
     this.input.pollPad();
     this._padMenus();
     G.net?.update?.(dt);

@@ -222,6 +222,7 @@ const settingsTabs = () => [
     { key: 'cheatRespawn', label: t('settings.row.cheatRespawn.label'), type: 'toggle', help: t('settings.row.cheatRespawn.help') },
     { key: 'cheatAimbot', label: t('settings.row.cheatAimbot.label'), type: 'toggle', help: t('settings.row.cheatAimbot.help') },
     { key: 'cheatAutoFire', label: t('settings.row.cheatAutoFire.label'), type: 'toggle', help: t('settings.row.cheatAutoFire.help') },
+    { key: 'cheatAimFov', label: t('settings.row.cheatAimFov.label'), type: 'seg', options: [[90, '90°'], [180, '180°'], [360, '360°']], help: t('settings.row.cheatAimFov.help') },
     { key: 'cheatSteady', label: t('settings.row.cheatSteady.label'), type: 'toggle', help: t('settings.row.cheatSteady.help') },
     { key: 'cheatSpeed', label: t('settings.row.cheatSpeed.label'), type: 'seg', options: [[1, '×1'], [1.5, '×1.5'], [2, '×2']], help: t('settings.row.cheatSpeed.help') },
     { key: 'cheatJump', label: t('settings.row.cheatJump.label'), type: 'seg', options: [[1, '×1'], [1.4, '×1.4'], [2, '×2']], help: t('settings.row.cheatJump.help') },
