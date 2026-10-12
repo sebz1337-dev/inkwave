@@ -477,7 +477,10 @@ export class BotBrain {
         const aimed = off < tol;
         this._firing = false;
         const BK = MAIN_KITS[w.kind]?.bot;
-        if (enemyVisible && this.react <= 0 && aimed && inkFrac > 0.02) {
+        // shooting at it: while in sight, plus a short burst into the spot it just ducked out of (no long hosing of the
+        // wall it is behind — and it has to be seen again before the next shot). (anfaal f9ca5c1 port)
+        const inView = enemyVisible && (this.t - (this._hidT ?? -9) < 0.35);
+        if (inView && this.react <= 0 && aimed && inkFrac > 0.02) {
           if (BK?.fight) {
             // kit weapons (kits/*.js) decide their own trigger (and may steer `move`)
             it.fire = BK.fight(this, { a, w, dist, range, dt, it, move, target: t });
@@ -504,7 +507,7 @@ export class BotBrain {
           }
           this._firing = it.fire;
           if (this.bombCd <= 0 && this._fightSub(dist)) { it.sub = true; this._bombAim = true; }
-        } else if (CHARGES[w.kind] && a.weaponRunner.charging && !enemyVisible) {
+        } else if (CHARGES[w.kind] && a.weaponRunner.charging && !inView) {
           it.fire = true; // keep charge while target briefly hidden
         }
         // out of range with own ink underfoot: swim in (fast, hard to hit) instead of walking
@@ -1665,6 +1668,7 @@ export class BotBrain {
       }
       this.seeTimer = 1.2;
       this.lostTimer = 0;
+      this._hidT = this.t; // last moment the target was actually seen (fire cut-off below)
     } else {
       this.seeTimer -= 0.2;
       if (this.target) {
