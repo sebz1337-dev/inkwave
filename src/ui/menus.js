@@ -193,6 +193,7 @@ const settingsTabs = () => [
   ] },
   { id: 'video', label: t('settings.tab.video'), icon: 'monitor', rows: [
     { key: 'quality', label: t('settings.row.quality.label'), type: 'seg', options: [['low', t('settings.row.quality.low')], ['medium', t('settings.row.quality.medium')], ['high', t('settings.row.quality.high')], ['ultra', t('settings.row.quality.ultra')]], help: t('settings.row.quality.help') },
+    { key: 'gpuPref', label: t('settings.row.gpuPref.label'), type: 'seg', options: [['high', t('settings.row.gpuPref.high')], ['battery', t('settings.row.gpuPref.battery')]], help: t('settings.row.gpuPref.help') },
     { key: 'fov', label: t('settings.row.fov.label'), type: 'slider', min: 65, max: 100, step: 1, fmt: (v) => Math.round(v) + '°', help: t('settings.row.fov.help') },
     { key: 'shadows', label: t('settings.row.shadows.label'), type: 'toggle', help: t('settings.row.shadows.help') },
     { key: 'bloom', label: t('settings.row.bloom.label'), type: 'toggle', help: t('settings.row.bloom.help') },

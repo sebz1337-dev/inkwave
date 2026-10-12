@@ -94,6 +94,17 @@ class Game {
     // renderer / scene
     this.R = new Renderer(app, this.settings);
     G.renderer = this.R.renderer;
+    // Laptop on an integrated GPU (the system graphics profile kept WebGL on the iGPU): the default 'high'
+    // preset will chug. Drop to 'medium' once — never below what the player already chose themselves — and
+    // tell them how to put the discrete GPU in charge. (jy b0241a3 port)
+    if (this.R.gpu?.isIGPU && !this.settings.igpuTuned) {
+      if (this.settings.quality === DEFAULT_SETTINGS.quality) { this.settings.quality = 'medium'; saveJSON('inkwave.settings', this.settings); }
+      this.settings.igpuTuned = true;
+      saveJSON('inkwave.settings', this.settings);
+      setTimeout(() => {
+        this.menus?.toast('Running on the built-in GPU — using medium quality for smoothness. To use the discrete GPU: Windows Settings → System → Display → Graphics, pick this browser and set it to "High performance", then relaunch.', { kind: 'info', ms: 9000 });
+      }, 2500);
+    }
     const scene = (G.scene = new THREE.Scene());
     const camera = (G.camera = new THREE.PerspectiveCamera(this.settings.fov, innerWidth / innerHeight, 0.15, 6500));
     camera.position.set(0, 40, -60);

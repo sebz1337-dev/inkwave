@@ -79,9 +79,24 @@ function isAppleGPU(gl) {
   return /Apple/i.test(name) && !/Intel|AMD|Radeon|NVIDIA/i.test(name);
 }
 
+// Integrated-GPU signature: laptops on the "balanced/auto" Windows graphics profile hand WebGL to the iGPU
+// (powerPreference:'high-performance' alone does not win over the OS preference). Detecting the name lets the
+// game tell the player to switch to the discrete GPU instead of silently chugging. (jy b0241a3 port)
+export function gpuInfo(gl) {
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  const name = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+  const dGPU = /NVIDIA|GeForce|\bRTX\b|\bGTX\b|\bArc\b|\bRX\s?\d{3,4}\b/i.test(name);
+  if (dGPU) return { name, isIGPU: false };
+  const iGPU = /\biGPU\b|\bUHD\b|\bIris\b|\bVega\b|\bHD Graphics\b|Intel\(R\)?\s+Radeon|AMD Radeon\(?TM\)?\s+(?:Graphics|\d|R\d{1,3}M)\b/i.test(name);
+  // fallback: an Intel/AMD string with no discrete-GPU signature (older names like "AMD Radeon HD 8570M")
+  return { name, isIGPU: iGPU || /\bIntel\b|\bAMD\b/i.test(name) };
+}
+
 export class Renderer {
   constructor(container, settings) {
-    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false }));
+    // gpuPref (settings): 'battery' stays on the integrated GPU (battery life); anything else requests the
+    // discrete one. powerPreference is only read when the WebGL context is created: relaunch to apply. (jy a5fe4e0 port)
+    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: (settings.gpuPref === 'battery') ? 'low-power' : 'high-performance', stencil: false }));
     // Shader status checks make every compile synchronous (the main thread waits on the GPU process for the link
     // result): a mid-game compile then stalls input, netcode and all. Players run without them; ?shadercheck (the
     // smoke test and dev tools) turns them back on so a broken shader still fails loudly.
@@ -100,6 +115,7 @@ export class Renderer {
     r.setClearColor(0x9fd8f0, 1);
     container.appendChild(r.domElement);
     this.appleGPU = isAppleGPU(r.getContext());
+    this.gpu = gpuInfo(r.getContext()); // { name, isIGPU } — main.js auto-tunes quality + hints on integrated GPUs
     r.domElement.id = 'game-canvas';
     this.container = container;
     this.scene = null; this.camera = null;

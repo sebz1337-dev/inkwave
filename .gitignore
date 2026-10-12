@@ -15,3 +15,5 @@ songs/**/*.opus
 songs/**/*.wav
 songs/**/*.flac
 songs/manifest.json
+# local runtime artifacts (probes)
+tools/serve.log
