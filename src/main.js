@@ -29,6 +29,8 @@ import { Minimap } from './game/minimap.js';
 import { Showcase } from './game/showcase.js';
 import { ZoneMarks } from './fx/zoneMarks.js';
 import { BOSS_MODE } from './boss/bossMode.js';
+import { Log } from './core/logger.js';
+import { Perf } from './core/perf.js';
 import { setLang, t } from './i18n/strings.js';
 
 const params = new URLSearchParams(location.search);
@@ -82,8 +84,10 @@ class Game {
     try { const { DioramaOverlay } = await import('./ui/diorama.js'); this.diorama = new DioramaOverlay(this.hud ? this.hud.el : this.uiRoot); } catch (e) { console.error('[inkwave] diorama', e); this.diorama = null; }
     this.hud?.setVisible(false);
     this.menus?.show('loading');
+    Log.install(); // uncaught errors / rejections leave a [inkwave:crash] trace (JONI 572dcaa)
     this.bootMarks = [];
-    const progress = async (p, label) => { this.bootMarks.push([label, Math.round(performance.now() - t0)]); this.menus?.setLoading(p, label); await nextFrame(); };
+    const bootStep = Log.steps('boot');
+    const progress = async (p, label) => { this.bootMarks.push([label, Math.round(performance.now() - t0)]); bootStep(label); this.menus?.setLoading(p, label); await nextFrame(); };
     await progress(0.05, 'Mixing ink…');
 
     // renderer / scene
@@ -194,7 +198,10 @@ class Game {
       this.api.startMatch({ mapId: map.id, difficulty: params.get('difficulty') || this.settings.difficulty, duration: +params.get('autostart') || undefined, mode: pm === 'boss' || pm === 'zones' ? pm : 'turf' });
     }
     this.bootMs = Math.round(performance.now() - t0);
+    Perf.init();
+    Log.info('boot', `ready in ${(this.bootMs / 1000).toFixed(1)}s · quality ${this.settings.quality}`);
     window.__inkwave = this; // debug/audit hook
+    window.__inkwave.perf = Perf; // frame percentiles + spot timings (JONI 572dcaa)
     window.__G = G;
     this.debug = {
       endMatch: (t = 0.5) => { if (this.match && !this.match.attract) this.match.time = t; },
