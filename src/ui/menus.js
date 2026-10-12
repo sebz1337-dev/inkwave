@@ -220,6 +220,8 @@ const settingsTabs = () => [
     { key: 'cheatInk', label: t('settings.row.cheatInk.label'), type: 'toggle', help: t('settings.row.cheatInk.help') },
     { key: 'cheatSpecial', label: t('settings.row.cheatSpecial.label'), type: 'toggle', help: t('settings.row.cheatSpecial.help') },
     { key: 'cheatRespawn', label: t('settings.row.cheatRespawn.label'), type: 'toggle', help: t('settings.row.cheatRespawn.help') },
+    { key: 'cheatAutoplay', label: t('settings.row.cheatAutoplay.label'), type: 'toggle', help: t('settings.row.cheatAutoplay.help') },
+    { key: 'cheatAutoplayLevel', label: t('settings.row.cheatAutoplayLevel.label'), type: 'seg', options: [[1, 'Beginner'], [2, 'Regular'], [3, 'Expert'], [4, 'Master'], [5, 'Legend']], help: t('settings.row.cheatAutoplayLevel.help') },
     { key: 'cheatAimbot', label: t('settings.row.cheatAimbot.label'), type: 'toggle', help: t('settings.row.cheatAimbot.help') },
     { key: 'cheatAutoFire', label: t('settings.row.cheatAutoFire.label'), type: 'toggle', help: t('settings.row.cheatAutoFire.help') },
     { key: 'cheatAimFov', label: t('settings.row.cheatAimFov.label'), type: 'seg', options: [[90, '90°'], [180, '180°'], [360, '360°']], help: t('settings.row.cheatAimFov.help') },

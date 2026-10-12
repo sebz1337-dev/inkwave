@@ -273,7 +273,8 @@ export class BotBrain {
     this.setDifficulty(difficulty);
     this.reset();
   }
-  setDifficulty(d) { this.diff = DIFFICULTY[d] || DIFFICULTY.normal; }
+  // a level name ('easy'…) or a full level object (AUTOPLAY rows, for the bot that plays your own character)
+  setDifficulty(d) { this.diff = typeof d === 'object' && d ? d : (DIFFICULTY[d] || DIFFICULTY.normal); }
   reset() {
     this.path = null; this.pi = 0; this.goal = -1; this.repath = 0; this.goalTimer = 0;
     this.target = null; this.seeTimer = 0; this.react = 0; this.lostTimer = 0;
@@ -321,13 +322,13 @@ export class BotBrain {
       this.aimYaw = a.yaw; this.aimPitch = 0; this.aimYawV = 0; this.aimPitchV = 0;
       const zp0 = zonePlan();
       if (zp0) this._zoneJump(zp0);
-      else if (Math.random() < 0.5) {
+      else if (this.diff.apex || Math.random() < 0.5) {
         const enemyPad = G.level.spawnPads[1 - a.team];
         let best = null, bd = Infinity;
         for (const o of G.actors) {
           if (o === a || o.team !== a.team || !o.alive || o.superJumpState) continue;
           const d = o.pos.distanceTo(enemyPad);
-          if (d < bd && o.pos.distanceTo(a.pos) > 18) { bd = d; best = o; }
+          if (d < bd && o.pos.distanceTo(a.pos) > 18 && !(this.diff.apex && this._enemyNear(o.pos, 8))) { bd = d; best = o; }
         }
         // a team jump beacon further up the field beats a teammate
         for (const b of G.subs ? G.subs.beaconsFor(a.team) : []) {
@@ -346,7 +347,7 @@ export class BotBrain {
 
     // ---------------- perception
     if (this.think <= 0) {
-      this.think = 0.15 + Math.random() * 0.1;
+      this.think = this.diff.apex ? 0.1 : 0.15 + Math.random() * 0.1;
       this._perceive();
     }
     const tgt = this.target;
@@ -363,11 +364,11 @@ export class BotBrain {
     if (this.mode === 'retreat') {
       this.retreatT -= dt;
       if (hpFrac > 0.85 || this.retreatT <= 0 || (!this.target && hpFrac > 0.6)) { this.mode = 'paint'; this.path = null; this.goalTimer = 0; }
-    } else if (this.target && this.seeTimer > 0 && ((hpFrac < 0.34 && !MELEE[w.kind] && a.lastDamage < 0.8) || hpFrac < 0.2) && Math.random() < 0.6 * dt * 60 * this.diff.fireDiscipline
+    } else if (this.target && this.seeTimer > 0 && this._retreatWanted(hpFrac, w) && Math.random() < 0.6 * dt * 60 * this.diff.fireDiscipline
       && !MAIN_KITS[w.kind]?.bot?.stayIn?.(this)) {   // (a kit may veto: e.g. the Cutlass finishing a fight at blade range)
       this.mode = 'retreat'; this.retreatT = 2.2 + Math.random() * 1.4; this.repath = 0; this._pickRetreat();
     }
-    if (this.mode !== 'refill' && this.mode !== 'retreat' && inkFrac < 0.12 && !(this.target && this.seeTimer > 0 && !MELEE[w.kind] && inkFrac > 0.05)) {
+    if (this.mode !== 'refill' && this.mode !== 'retreat' && this._refillWanted(inkFrac, w)) {
       this.mode = 'refill'; this.refillUntil = 0.85 + Math.random() * 0.1;
     }
     if (this.mode === 'refill' && inkFrac >= this.refillUntil) this.mode = 'paint';
@@ -440,7 +441,7 @@ export class BotBrain {
       wantPitch = idealPitch + e * 0.6 * (0.75 * wander(this.t * 2.1 + this.ph2) + 1.6 * acq * this.acqSignP);
       if (this.mode === 'fight') {
         // movement in combat: keep preferred distance + eased strafing (+ swim in to close distance)
-        const pref = w.kind === 'charger' ? range * 0.8 : MELEE[w.kind] ? 0.5 : range * 0.7;
+        const pref = this._prefDist(w, range);
         if (this.strafeT <= 0) { this.strafeT = 0.6 + Math.random() * 1.2; this.strafe = Math.random() < 0.5 ? -1 : 1; this.strafeAmp = 0.5 + Math.random() * 0.5; }
         this.strafeS += (this.strafe * this.strafeAmp - this.strafeS) * (1 - Math.exp(-5 * dt));
         const nx = dx / Math.max(dist, 0.01), nz = dz / Math.max(dist, 0.01);
@@ -546,7 +547,7 @@ export class BotBrain {
         for (const off of [0, -0.6, 0.6, -1.2, 1.2]) {
           const yw = (wantMove ? Math.atan2(move.x, move.z) : this.aimYaw) + off;
           const st = G.paint.regionStats(a.pos.x + Math.sin(yw) * reach, a.pos.y, a.pos.z + Math.cos(yw) * reach, 2.2, a.team, _stats);
-          let v = st.n ? st.empty + st.enemy * 1.4 - Math.abs(off) * 0.12 : -1;
+          let v = st.n ? st.empty + st.enemy * (this.diff.apex ? 2.5 : 1.4) - Math.abs(off) * 0.12 : -1;
           if (zp && st.n && zp.onActive(a.pos.x + Math.sin(yw) * reach, a.pos.y, a.pos.z + Math.cos(yw) * reach)) v += 0.8;   // the zone's ink first
           if (v > bestV) { bestV = v; bestOff = off; }
         }
@@ -644,6 +645,10 @@ export class BotBrain {
     const om = snappy ? (this.diff.aimOmega ?? 13) : 8;
     const maxRate = snappy ? (this.diff.aimTurn ?? 10) : 6;
     wantPitch = clamp(wantPitch, -1.1, 1.0);
+    if (this.diff.apex) {
+      // a spring this stiff is unstable at a 30 fps step, and the level-5 bot has no reaction to model anyway
+      this.aimYaw = wantYaw; this.aimPitch = wantPitch; this.aimYawV = this.aimPitchV = 0;
+    } else {
     this.aimYawV += (om * om * angleDiff(this.aimYaw, wantYaw) - 2 * om * this.aimYawV) * dt;
     this.aimYawV = clamp(this.aimYawV, -maxRate, maxRate);
     this.aimYaw += this.aimYawV * dt;
@@ -651,6 +656,7 @@ export class BotBrain {
     this.aimPitchV += (om * om * (wantPitch - this.aimPitch) - 2 * om * this.aimPitchV) * dt;
     this.aimPitchV = clamp(this.aimPitchV, -maxRate * 0.7, maxRate * 0.7);
     this.aimPitch = clamp(this.aimPitch + this.aimPitchV * dt, -1.1, 1.0);
+    }
     a.aimYaw = this.aimYaw; a.aimPitch = this.aimPitch;
     // shots go where the bot is actually aiming (its eye ray at the target's distance), never straight to the target
     {
@@ -1612,6 +1618,20 @@ export class BotBrain {
     if (gl > 0.05) move.set((gx / gl) * ml, 0, (gz / gl) * ml);
     this.noProg = 0; this.bestD = Infinity;
     return null;
+  }
+
+  // overridable rules (the level-5 bot in autoplay.js changes them; enemy-bot behavior unchanged)
+  _retreatWanted(hpFrac, w) { return (hpFrac < 0.34 && !MELEE[w.kind] && this.a.lastDamage < 0.8) || hpFrac < 0.2; }
+  _refillWanted(inkFrac, w) { return inkFrac < 0.12 && !(this.target && this.seeTimer > 0 && !MELEE[w.kind] && inkFrac > 0.05); }
+  _prefDist(w, range) { return w.kind === 'charger' ? range * 0.8 : MELEE[w.kind] ? 0.5 : range * 0.7; }
+  _enemyNear(pos, r) {
+    const a = this.a, r2 = r * r;
+    for (const e of G.actors) {
+      if (e.team === a.team || !e.alive) continue;
+      const dx = e.pos.x - pos.x, dy = e.pos.y - pos.y, dz = e.pos.z - pos.z;
+      if (dx * dx + dy * dy + dz * dz < r2) return true;
+    }
+    return false;
   }
 
   _range() {

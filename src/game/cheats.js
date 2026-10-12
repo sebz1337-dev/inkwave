@@ -6,6 +6,7 @@
 //   actor.js    invincible (you / your team), respawn time, move speed, jump height, gravity
 //   weapons.js  fire rate, damage, steady aim (no spread)
 //   player.js   aimbot target + camera + auto-fire (the fire solutions: aimbot.js); autoplay hand-over
+//   autoplay.js a bot plays your own character (strength 1-5); autoplay hand-over
 //   autoplay.js a bot plays your own character (strength 1-5)
 //   match.js    enemies frozen / passive, timer stopped
 //   paint.js    ink splat size (your team)

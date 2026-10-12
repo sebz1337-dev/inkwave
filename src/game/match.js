@@ -1,11 +1,12 @@
 // Match: turf-war rules, lifecycle (intro → countdown → play → time's up → judge → results), team setup.
 import * as THREE from 'three';
 import { G, emit, on, clamp } from '../core/ctx.js';
-import { MATCH, PLAYER, WEAPON_ORDER, SUB_ORDER, SPECIAL_ORDER, BOT_NAMES, TEAM_NAMES, ZONES } from '../config.js';
+import { MATCH, PLAYER, WEAPON_ORDER, SUB_ORDER, SPECIAL_ORDER, BOT_NAMES, TEAM_NAMES, ZONES, AUTOPLAY } from '../config.js';
 import { ZoneControl } from './zones.js';
 import { randomStyle } from './character-style.js';
 import { Actor } from './actor.js';
 import { BotBrain } from './bots.js';
+import { makeAutoBrain } from './autoplay.js';
 import { PlayerController } from './player.js';
 import { CHEATS, cheatEnemyFrozen, cheatEnemyPassive } from './cheats.js';
 import { BossMode, BOSS_MODE } from '../boss/bossMode.js';
@@ -74,7 +75,9 @@ export class Match {
         });
         if (isLocal && o.style) { /* reserved for future customisation */ }
         G.scene.add(a.character.root);
-        if ((!isLocal || o.autopilot) && !(noBots && !isLocal)) a.bot = new BotBrain(a, o.difficulty);
+        // ?autopilot: your own character on a bot; ?autopilot=1..5 picks an autoplay strength (tools/autoplay-eval.mjs)
+        if (isLocal && o.autopilot && (o.autopilotLevel || 0) > 0) a.bot = makeAutoBrain(a, AUTOPLAY[clamp(Math.round(o.autopilotLevel), 1, 5) - 1]);
+        else if ((!isLocal || o.autopilot) && !(noBots && !isLocal)) a.bot = new BotBrain(a, o.difficulty);
         this.actors.push(a);
       }
     }
@@ -110,7 +113,7 @@ export class Match {
       const a = new Actor({ team: r.team, slot: r.slot, weapon: r.weapon, sub: r.sub || null, special: r.special || null, isLocal: mine && !r.bot, isBot: r.bot, name: r.name, style: r.style || undefined, CharacterClass });
       a.nid = r.nid; a.owner = r.owner; a.remote = !mine;
       G.scene.add(a.character.root);
-      if (mine && (r.bot || o.autopilot)) a.bot = new BotBrain(a, o.difficulty);
+      if (mine && (r.bot || o.autopilot)) a.bot = (mine && !r.bot && (o.autopilotLevel || 0) > 0) ? makeAutoBrain(a, AUTOPLAY[clamp(Math.round(o.autopilotLevel), 1, 5) - 1]) : new BotBrain(a, o.difficulty);
       this.actors.push(a);
     }
     G.actors = this.actors;

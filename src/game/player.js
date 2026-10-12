@@ -11,13 +11,16 @@ import { G, clamp, lerp, angleDiff } from '../core/ctx.js';
 import { PLAYER, weaponRange } from '../config.js';
 import { Physics, Hit } from './physics.js';
 import { CHEATS } from './cheats.js';
-import { solveWeapon, bodyCenter, weaponReach } from './aimbot.js';
+import { solveWeapon, bodyCenter, weaponReach, autoFire } from './aimbot.js';
+import { autoplayLevel, makeAutoBrain } from './autoplay.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3(), _c = new THREE.Vector3(), _mz = new THREE.Vector3();
 const _hit = new Hit();
 const _res = { t: 0, dist: 0 };
 const _stick = { x: 0, y: 0, mag: 0 };
 const DEG = Math.PI / 180;
+// keys that mean "the player is driving" (autoplay hands control back while any is down)
+const HUMAN_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'Tab', 'KeyM'];
 
 // fine near the centre, fast at the edge (continuous, slope-matched at the knee)
 function lookCurve(m) { return m < 0.75 ? 0.62 * Math.pow(m / 0.75, 1.6) : 0.62 + ((m - 0.75) / 0.25) * 0.38; }
@@ -32,6 +35,9 @@ export class PlayerController {
     this.enabled = true;
     this.edgeT = 0;
     this.assist = { target: null, yaw: 0, pitch: 0, has: false, strength: 0 };
+    this.auto = null; // autoplay brain (cheat) while it is driving
+    this.autoLvl = null;
+    this.autoHold = 0; // seconds of manual control left after the player touched something
     // Super Jump planned on the TAB map while splatted: { kind: 'ally' | 'beacon', target, name }. Picking only queues it;
     // it launches (the normal charge + flight) the moment you respawn — see launchQueuedJump(), called on 'respawn'
     this.jumpQueue = null;
@@ -43,8 +49,7 @@ export class PlayerController {
     if (!this.enabled) {
       it.move.set(0, 0, 0); it.fire = it.jump = it.squid = it.sub = it.special = false;
       this.assist.has = false; a.aimLock = null;
-      return;
-      this.assist.has = false;
+      if (this.auto && !a.alive) this.auto._wasDead = true; // so the bot's respawn routine (super jump) still runs
       // splatted in a live round: the TAB map still opens, to plan the Super Jump you'll take on respawn
       const m = G.match;
       const planning = !!(m && !a.alive && m.state === 'playing' && !m.paused);
@@ -53,6 +58,20 @@ export class PlayerController {
       else if (!m || m.state !== 'playing') this.jumpQueue = null;
       return;
     }
+    if (CHEATS.cheatAutoplay && !G.match?.attract) {
+      const lvl = autoplayLevel();
+      if (!this.auto || this.autoLvl !== lvl) {
+        this.auto = makeAutoBrain(a, lvl); this.autoLvl = lvl;
+        this.auto.aimYaw = rig.yaw; this.auto.aimPitch = rig.pitch;
+      }
+      if (this._humanInput()) this.autoHold = 1.5; // any stick / key / fire input hands control back for 1.5 s
+      if ((this.autoHold -= dt) <= 0) {
+        if (this._autoWasHeld) { this._autoWasHeld = false; this.auto.aimYaw = rig.yaw; this.auto.aimPitch = rig.pitch; this.auto.path = null; this.auto.goalTimer = 0; }
+        this._runAuto(dt, lvl);
+        return;
+      }
+      this._autoWasHeld = true;
+    } else if (this.auto) { this.auto = null; this.autoHold = 0; a.aimLock = null; }
     const usingPad = !!inp.pad && inp.lastDevice === 'pad';
     // ---- aim assist target (computed from last frame's camera; cheap)
     const as = this._assistTarget(usingPad ? (s.aimAssist ?? 1) : (s.aimAssistMouse ? 0.5 : 0));
@@ -272,19 +291,7 @@ export class PlayerController {
     const out = { yaw: Math.atan2(_v.x, _v.z), pitch: Math.asin(clamp(_v.y, -1, 1)), fire: null };
     // auto-fire, per weapon: hold / release the way each one needs
     if (CHEATS.cheatAutoFire) {
-      const wr = a.weaponRunner, e = S.enemy, dist = a.pos.distanceTo(e.pos);
-      if (w.kind === 'charger') {
-        // charge while locked; release once this charge splats (or at full), inside its range
-        const c = wr.charge || 0;
-        const dmg = c >= 0.999 ? w.damageMax : c * (w.damageMax * 0.62 - w.damageMin) + w.damageMin;
-        const range = w.rangeMin + (w.rangeMax - w.rangeMin) * c;
-        out.fire = !(wr.charging && (c >= 0.999 || (dmg >= e.hp && c > 0.2)) && dist <= range);
-      } else if (w.kind === 'splatling') {
-        out.fire = wr.streaming ? false : (wr.charge || 0) < 1;
-      } else if (w.kind === 'roller') {
-        this._flickT = !this._flickT; // a fresh press every other frame: flick, don't roll
-        out.fire = this._flickT;
-      } else out.fire = true;
+      out.fire = autoFire(a, S.enemy, a.pos.distanceTo(S.enemy.pos));
     }
     return out;
   }
@@ -321,7 +328,38 @@ export class PlayerController {
     return as;
   }
 
+  // Autoplay: the bot writes the intent and aim, the camera follows its aim (level 5 snaps: its shots are exact anyway).
+  _runAuto(dt, lvl) {
+    const a = this.a, rig = this.rig, bot = this.auto;
+    bot.update(dt);
+    const k = 1 - Math.exp(-(lvl.apex ? 40 : 18) * dt);
+    rig.yaw += angleDiff(rig.yaw, bot.aimYaw) * k;
+    rig.pitch = clamp(rig.pitch + (bot.aimPitch - rig.pitch) * k, -1.05, 1.15);
+    this.mapHeld = false;
+    this.onTarget = a.aimLock ? a.aimLock.enemy : null;
+  }
+
+  // Has the player touched any control? (mirrors what update() reads: look, move, buttons; the map key counts too)
+  _humanInput() {
+    const inp = this.input;
+    if (inp.mouse.dx || inp.mouse.dy || inp.mouse.left || inp.mouse.right) return true;
+    for (const k of HUMAN_KEYS) if (inp.down(k)) return true;
+    if (inp.pad) {
+      inp.padStick(0, 1, _stick, 0.14, 0.95); if (_stick.mag > 0.3) return true;
+      inp.padStick(2, 3, _stick, 0.11, 0.96); if (_stick.mag > 0.3) return true;
+      for (const b of [0, 3, 5, 8, 11]) if (inp.padButton(b)) return true;
+      if (inp.padValue(6) > 0.3 || inp.padValue(7) > 0.3) return true;
+    }
+    return false;
+  }
+
   computeAim() {
+    // autoplay owns the aim point (the bot sets it); only the HUD's reticle state is kept fresh
+    if (this.auto && this.autoHold <= 0) {
+      const w = this.a.weapon;
+      this.inRange = !!this.onTarget || this.a.aimPoint.distanceTo(this.a.pos) <= weaponReach(w);
+      return;
+    }
     // the gameplay view — while the map diorama is up the rendered camera is overhead, aim stays with the player
     const a = this.a, cam = G.rig?.gameCam || G.camera;
     const fwd = cam.getWorldDirection(_fwd);
