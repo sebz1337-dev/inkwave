@@ -479,7 +479,7 @@ export class HUD {
     this.hideSplatted(true);
     const C = 2 * Math.PI * 44;
     const num = h('b', { class: 'iw-spl__num' }, String(Math.ceil(respawn)));
-    const ring = h('div', { class: 'iw-spl__ring', html: `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" class="bg"/><circle cx="50" cy="50" r="44" class="fg" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${C.toFixed(1)};animation-duration:${Math.max(0.1, respawn)}s"/></svg>` }, num, h('small', null, 'RESPAWN'));
+    const ring = h('div', { class: 'iw-spl__ring', html: `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" class="bg"/><circle cx="50" cy="50" r="44" class="fg" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${C.toFixed(1)};animation-duration:${Math.max(0.1, respawn)}s;animation-timing-function:steps(${Math.ceil(Math.max(0.1, respawn) * 30)})"/></svg>` }, num, h('small', null, 'RESPAWN'));
     const tint = h('div', { class: 'iw-spl__tint' });
     this.el.prepend(tint);
     const killer = attacker !== undefined ? attacker : this._kills.lastKiller;
@@ -1235,7 +1235,9 @@ export class HUD {
         if (wasAlive && !p.alive) {
           el.animate([{ transform: 'scale(1.4) rotate(-14deg)' }, { transform: 'scale(.92) rotate(4deg)', offset: 0.5 }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.34,1.6,.64,1)' });
           const ring = el.querySelector('.iw-sq__ring circle');
-          ring.style.animationDuration = `${Math.max(0.2, p.respawn || PLAYER.respawnTime)}s`;
+          const d = Math.max(0.2, p.respawn || PLAYER.respawnTime);
+          ring.style.animationDuration = `${d}s`;
+          ring.style.animationTimingFunction = `steps(${Math.ceil(d * 30)})`;
           this._restart(el, 'is-dying');
         } else if (!wasAlive && p.alive) {
           el.animate([{ transform: 'translateY(-10px) scale(1.25)' }, { transform: 'none' }], BUMP);
