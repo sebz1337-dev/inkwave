@@ -143,10 +143,10 @@ float iwMaskSD(vec3 s, vec4 ap) {
   float e = sqrt(xn * xn + ln * ln);
   float phi = atan(ln, xn);
   float up = clamp(sin(phi), -1.0, 1.0);
-  float w = 0.06 + 0.20 * smoothstep(-0.8, 0.9, up);     // bold over the upper lid, thin line under it (no spikes)
-  return min(e - 0.97, (1.0 + w) - e);
+  float w = 0.01 + 0.12 * smoothstep(-0.9, 0.7, up);     // heavy upper lid line, light lower rim (manga liner)
+  return min(e - 1.0, (1.0 + w) - e);
 }
-float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.58, 0.3, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
+float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.72, 0.34, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
 // eye-space constants shared by the skin (lids) and eye (ball, lid shadow) shaders
 // Snapshot the current face constants: the sculpt/eye metrics are global module state (setFaceShape), so a material
@@ -286,7 +286,7 @@ export function makeSkinMaterial(u, skinHex) {
           float w = clamp(fwidth(sd), 1e-4, 0.04);
           float rimK = smoothstep(-0.008 - w, 0.008 + w, sd) * gate;
           // bridge: the bar joining both rings across the nose bridge — the reference mask is ONE connected shape
-          float bAz = (abs(az) - 0.10) / 0.24, bEl = (el - 0.115) / 0.055;
+          float bAz = (abs(az) - 0.08) / 0.15, bEl = (el - 0.10) / 0.05;
           float bridge = 1.0 - smoothstep(0.72, 1.05, length(vec2(bAz, bEl)));
           iwVisor = max(rimK, bridge);
           vec3 vc = mix(vec3(0.012, 0.0135, 0.02), vec3(0.018, 0.021, 0.032), smoothstep(-0.1, 0.5, el));

@@ -109,6 +109,29 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Chibi + chunky-hair pass (2026-10-13)
+Owner brief: "a lot more chibi / manga, bigger eyes", and hair that reads as a few thick sculpted locks instead of a
+bundle of thin strands.
+- **Bigger eyes.** `EYEB` radii +11 % (`rx/ry/rz` 0.060/0.073/0.040) and a bigger opening (`xh` 0.55 → 0.66,
+  `hu` 0.68 → 0.82, `hl` 0.63 → 0.76); `EYE_RECT` widened to keep containing the patch (`0.05 … 0.70`,
+  `−0.26 … 0.52` — `el0` is bounded by `MOUTH_RECT.el1 = −0.27` because the carrier knots must stay ordered). Iris
+  stays at 0.42 so the manga proportion of sclera-to-iris holds. The mask is aperture-space, so the ring and bridge
+  scaled with the eyes for free; the liner was thinned to `0.01 + 0.12·smoothstep(−0.9, 0.7, up)` and its inner edge
+  moved to `e = 1` so it sits exactly on the lid edge instead of overlapping it.
+- **Bigger head.** `HR0` 0.186/0.168/0.168 → 0.196/0.180/0.176 (chibi). The jaw plane scales with `HR.y` and
+  `setFaceShape` recomputes it, so the head can grow without re-introducing the jaw crease.
+- **Hair: fewer, thicker locks.** Strand counts per style: Tide 7 → 3, Spike 6 → 5, Twin 6 → 4, Bob 7 → 5, Pony 6 → 5,
+  Crest 5 → 3, Knot 7 → 6, Swoop 6 → 4 (the wispy face-framing locks and the second bang per strand are gone; two
+  crest fins and two swoop locks were dropped). Each remaining lock is thicker (`rk` ×1.05 with the removed strands
+  doing the heavy lifting), tapers over a longer run to a point (`lerp(1, 0.12, sstep(0.72, 1, t))`), keeps more of
+  its end radius (`r1 × 1.2`) and has a smaller club (0.24 → 0.16). Bang tabs are lifted 14 mm off the scalp so they
+  read as locks rather than a smooth sheet, and the front hairline rose (`hairline` front 0.58 → 0.72, plus its
+  `iwHairline` twin) so the fringe clears the eyes.
+- **Budget after this pass** (`lab.headInfo`/`lodInfo`): hero 89 923 tris (hair 32 757 → **15 285**), game **28 834**,
+  far **8 554** — everything under the 40k rule, hair cost roughly halved.
+- Remaining knobs if you want to push further: the liner weight/bridge ellipse in `iwMaskSD`/the pigment block, the
+  per-style strand arrays in `STYLES`, the global `rk` multiplier and the hairline height.
+
 ### Face sculpt + eye size are style slots (2026-10-13)
 `faceShape` (6 options, `FACE_SHAPES`) and `eyeSize` (3, `EYE_SIZES`) live in `character-face.js`, mirrored by name in
 `character-style.js` (`FACE_SHAPE_NAMES`, `EYE_SIZE_NAMES`) and listed in `SLOT_NAMES` for the locker and the labs.

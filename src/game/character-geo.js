@@ -667,13 +667,9 @@ const STYLES = [
   { // 0 — "Tide": long swept-back tentacles + face-framing locks + a swept bang
     name: 'Tide',
     strands: (() => {
-      const backL = { pts: [IN(2.55, 0.9), S(2.65, 0.45), S(2.78, -0.1), [0.05, -0.17, -0.212], [0.06, -0.218, -0.222], [0.074, -0.24, -0.238]], r0: 0.058, r1: 0.018, flat: 0.5, K: 1, G: 1, suck: true, curl: 0.9 };
-      const outL = { pts: [IN(2.0, 0.8), S(2.08, 0.35), S(2.18, -0.15), [0.158, -0.13, -0.11], [0.185, -0.175, -0.112], [0.2, -0.192, -0.128]], r0: 0.052, r1: 0.016, flat: 0.5, K: 1.2, G: 0.9, suck: true, curl: 1.0 };
-      const lockL = { pts: [IN(1.15, 0.85), S(1.25, 0.42), S(1.34, 0.08), [0.18, -0.07, 0.03], [0.176, -0.118, 0.055], [0.165, -0.14, 0.075]], r0: 0.042, r1: 0.015, flat: 0.5, K: 1.5, G: 0.8, suck: false, curl: 0.7 };
+      const backL = { pts: [IN(2.55, 0.9), S(2.65, 0.45), S(2.78, -0.1), [0.05, -0.17, -0.212], [0.06, -0.218, -0.222], [0.074, -0.24, -0.238]], r0: 0.058, r1: 0.024, flat: 0.5, K: 1, G: 1, suck: true, curl: 0.9 };
       return [
         backL, { ...backL, pts: mirror(backL.pts).map((p, i) => (i === 5 ? [-0.07, -0.232, -0.236] : p)) },
-        outL, { ...outL, pts: mirror(outL.pts) },
-        lockL, { ...lockL, pts: mirror(lockL.pts) },
         { pts: [IN(0.95, 1.12), S(0.45, 0.94, 0.002), S(-0.1, 0.77, 0.003), S(-0.6, 0.63, 0.004), S(-1.0, 0.47, 0.004), [-0.192, 0.05, 0.068]], r0: 0.048, r1: 0.017, flat: 0.4, K: 2.4, G: 0.4, suck: false, curl: 0.5,
           rMain: 0.78, locks: [{ d: -0.032, h: -0.003, r: 0.66, len: 0.7, curl: 1.0 }, { d: 0.034, h: 0.006, r: 0.7, len: 0.88, curl: 0.4 }] },
       ];
@@ -689,9 +685,8 @@ const STYLES = [
         { pts: [IN(0.15, 1.05), [0.0, 0.212, -0.02], [0.0, 0.245, -0.1], [0.0, 0.225, -0.18], [0.0, 0.18, -0.222]], r0: 0.056, r1: 0.018, flat: 0.52, K: 2.2, G: 0.3, suck: true, curl: 1.0 },
         sideL, { ...sideL, pts: mirror(sideL.pts) },
         backL, { ...backL, pts: mirror(backL.pts) },
-        { pts: [IN(3.14, 0.55), S(3.14, 0.05), [0.0, -0.11, -0.205], [0.0, -0.155, -0.215], [0.0, -0.175, -0.245]], r0: 0.05, r1: 0.018, flat: 0.52, K: 1.6, G: 0.7, suck: true, curl: 0.9 },
         { pts: [IN(0.3, 1.0), [0.02, 0.2, 0.12], [-0.04, 0.218, 0.172], [-0.1, 0.19, 0.198], [-0.135, 0.152, 0.2]], r0: 0.048, r1: 0.017, flat: 0.48, K: 2.8, G: 0.2, suck: false, curl: 0.8,
-          rMain: 0.82, locks: [{ d: -0.03, h: -0.006, r: 0.68, len: 0.7, curl: 1.0 }, { d: 0.03, h: -0.002, r: 0.66, len: 0.8, curl: 0.7 }] },
+          rMain: 0.82, locks: [{ d: -0.03, h: -0.006, r: 0.68, len: 0.7, curl: 1.0 }] },
       ];
     })(),
     // under a hat the spikes are squashed flat: short flicks kick out below the rim at the back instead
@@ -712,7 +707,6 @@ const STYLES = [
           rMain: 0.8, locks: [{ d: 0.03, h: -0.003, r: 0.66, len: 0.66, curl: 0.95 }, { d: -0.03, h: 0.005, r: 0.68, len: 0.9, curl: 0.4 }] };
       return [
         tailL, { ...tailL, pts: mirror(tailL.pts) },
-        { pts: [IN(3.14, 0.9), S(3.14, 0.3), S(3.14, -0.25), [0.0, -0.14, -0.205], [0.0, -0.18, -0.232]], r0: 0.05, r1: 0.02, flat: 0.52, K: 1.4, G: 0.8, suck: true, curl: 0.9 },
         bangL, { ...bangL, pts: mirror(bangL.pts) },
       ];
     })(),
@@ -735,10 +729,10 @@ const STYLES = [
     name: 'Bob',
     strands: (() => {
       const mk = (az, len, r0, suck) => ({ pts: [IN(az, 0.95), S(az * 1.03, 0.45), S(az * 1.05, 0.0), O(az * 1.06, -0.32 * len, 0.05), O(az * 1.02, -0.52 * len, 0.028)], r0, r1: 0.024, flat: 0.52, K: 1.4, G: 0.85, suck, curl: -0.9 });
-      const a = mk(1.3, 1.0, 0.05, false), b = mk(2.0, 1.05, 0.054, true), c = mk(2.7, 1.1, 0.056, true);
-      return [a, { ...a, pts: mirror(a.pts) }, b, { ...b, pts: mirror(b.pts) }, c, { ...c, pts: mirror(c.pts) },
+      const a = mk(2.0, 1.05, 0.062, true), b = mk(2.7, 1.12, 0.064, true);
+      return [a, { ...a, pts: mirror(a.pts) }, b, { ...b, pts: mirror(b.pts) },
         { pts: [IN(-0.75, 1.15), S(-0.2, 0.9, 0.002), S(0.3, 0.75, 0.003), S(0.78, 0.6, 0.004), S(1.1, 0.44, 0.004), [0.196, 0.005, 0.058]], r0: 0.047, r1: 0.02, flat: 0.4, K: 2.4, G: 0.4, suck: false, curl: 0.5,
-          rMain: 0.78, locks: [{ d: 0.032, h: -0.003, r: 0.66, len: 0.68, curl: 1.0 }, { d: -0.034, h: 0.006, r: 0.7, len: 0.86, curl: 0.4 }] }];
+          rMain: 0.78, locks: [{ d: 0.032, h: -0.003, r: 0.66, len: 0.68, curl: 1.0 }] }];
     })(),
     gear: 'bob',
   },
@@ -747,10 +741,10 @@ const STYLES = [
     strands: (() => {
       const tail = { pts: [[0, 0.12, -0.085], [0, 0.172, -0.13], [0, 0.235, -0.175], [0, 0.262, -0.235], [0, 0.235, -0.3], [0, 0.165, -0.345], [0, 0.07, -0.36], [0, -0.03, -0.345], [0, -0.11, -0.31]], r0: 0.066, r1: 0.03, taper: 1.7, flat: 1.25, K: 0.95, G: 1.05, suck: true, curl: 0.85 };
       const flank = { pts: [[0.012, 0.12, -0.085], [0.02, 0.17, -0.13], [0.04, 0.226, -0.172], [0.054, 0.246, -0.23], [0.062, 0.212, -0.29], [0.068, 0.138, -0.326], [0.074, 0.05, -0.332], [0.084, -0.03, -0.31]], r0: 0.048, r1: 0.022, taper: 1.4, flat: 1.1, K: 1.05, G: 1.0, suck: true, curl: 1.0 };
-      const lock = { pts: [IN(1.06, 0.82), S(1.17, 0.42), S(1.25, 0.08), [0.183, -0.072, 0.05], [0.177, -0.122, 0.064]], r0: 0.036, r1: 0.014, flat: 0.5, K: 1.8, G: 0.7, suck: false, curl: 0.6 };
+      const lock = { pts: [IN(1.06, 0.82), S(1.17, 0.42), S(1.25, 0.08), [0.183, -0.072, 0.05], [0.177, -0.122, 0.064]], r0: 0.05, r1: 0.02, flat: 0.5, K: 1.8, G: 0.7, suck: true, curl: 0.6 };
       return [
         tail, flank, { ...flank, pts: mirror(flank.pts) }, lock, { ...lock, pts: mirror(lock.pts) },
-        { pts: [IN(-0.9, 1.12), S(-0.5, 0.95, 0.002), S(-0.05, 0.8, 0.003), S(0.42, 0.66, 0.004), S(0.8, 0.52, 0.004), [0.18, 0.058, 0.096]], r0: 0.046, r1: 0.018, flat: 0.4, K: 2.4, G: 0.4, suck: false, curl: 0.55, rMain: 0.8, locks: PONY_LOCKS },
+        { pts: [IN(-0.9, 1.12), S(-0.5, 0.95, 0.002), S(-0.05, 0.8, 0.003), S(0.42, 0.66, 0.004), S(0.8, 0.52, 0.004), [0.18, 0.058, 0.096]], r0: 0.046, r1: 0.018, flat: 0.4, K: 2.4, G: 0.4, suck: false, curl: 0.55, rMain: 0.8, locks: [{ d: 0.03, h: -0.003, r: 0.66, len: 0.7, curl: 1.0 }] },
       ];
     })(),
     cap: { pole: [0, 0.8, -0.6] },
@@ -772,11 +766,9 @@ const STYLES = [
     strands: (() => {
       const fin = (root, pts, r0, K = 2.4, curl = 0.9) => ({ pts: [root, ...pts], r0, r1: 0.019, taper: 1.15, flat: 1.25, K, G: 0.32, suck: false, curl, out: 'x', twist: 0 });
       return [
-        fin(IN(0, 1.0), [[0, 0.212, 0.084], [0, 0.262, 0.046], [0, 0.285, -0.014], [0, 0.272, -0.07]], 0.056),
-        fin(IN(0, 1.4), [[0, 0.226, 0.014], [0, 0.262, -0.036], [0, 0.265, -0.096], [0, 0.24, -0.14]], 0.058),
-        fin(IN(3.14, 1.18), [[0, 0.206, -0.07], [0, 0.236, -0.12], [0, 0.226, -0.175], [0, 0.19, -0.21]], 0.056),
-        fin(IN(3.14, 0.85), [[0, 0.16, -0.126], [0, 0.18, -0.18], [0, 0.156, -0.23], [0, 0.11, -0.256]], 0.052, 2.0),
-        fin(IN(3.14, 0.5), [[0, 0.1, -0.172], [0, 0.104, -0.226], [0, 0.062, -0.256], [0, 0.0, -0.262]], 0.047, 1.6, 0.8),
+        fin(IN(0, 1.0), [[0, 0.212, 0.084], [0, 0.262, 0.046], [0, 0.285, -0.014], [0, 0.272, -0.07]], 0.066),
+        fin(IN(0, 1.4), [[0, 0.226, 0.014], [0, 0.262, -0.036], [0, 0.265, -0.096], [0, 0.24, -0.14]], 0.068),
+        fin(IN(3.14, 1.18), [[0, 0.206, -0.07], [0, 0.236, -0.12], [0, 0.226, -0.175], [0, 0.19, -0.21]], 0.066),
       ];
     })(),
     // under a hat the crest is pressed flat: only its tail shows, kicking out below the rim at the nape
@@ -797,7 +789,6 @@ const STYLES = [
         knotCoil(C, Rb, 0.3), knotCoil(C, Rb, 0.3 + Math.PI),
         sprout, { ...sprout, pts: mirror(sprout.pts).map((p, i) => (i === 4 ? [-0.094, 0.262, -0.128] : p)) },
         side, { ...side, pts: mirror(side.pts) },
-        { pts: [IN(3.14, 0.45), S(3.14, 0.02), [0, -0.118, -0.196], [0, -0.156, -0.212]], r0: 0.04, r1: 0.017, flat: 0.55, K: 1.6, G: 0.7, suck: true, curl: 0.8 },
       ];
     })(),
     knot: { at: [0, 0.214, -0.036], r: 0.04 },
@@ -819,9 +810,7 @@ const STYLES = [
         rMain: 0.8, locks: [{ d: -0.032, h: -0.003, r: 0.64, len: 0.5, curl: 1.0 }, { d: 0.034, h: 0.006, r: 0.7, len: 0.78, curl: 0.5 }] },
       { pts: [IN(0.95, 1.3), S(0.35, 1.2), S(-0.35, 1.0), S(-0.95, 0.72), S(-1.25, 0.36), O(-1.34, 0.0, 0.052), [-0.18, -0.17, 0.012], [-0.17, -0.225, 0.02]], r0: 0.056, r1: 0.022, flat: 0.5, K: 1.2, G: 0.9, suck: true, curl: 0.8 },
       { pts: [IN(1.5, 1.35), S(-1.8, 1.2), S(-2.05, 0.7), S(-2.12, 0.2), [-0.15, -0.1, -0.13], [-0.148, -0.19, -0.14]], r0: 0.052, r1: 0.02, flat: 0.52, K: 1.2, G: 0.9, suck: true, curl: 0.8 },
-      { pts: [IN(-2.5, 0.95), S(-2.66, 0.44), S(-2.8, -0.06), [-0.062, -0.16, -0.2], [-0.07, -0.236, -0.214]], r0: 0.05, r1: 0.019, flat: 0.52, K: 1.3, G: 0.9, suck: true, curl: 0.85 },
-      { pts: [IN(1.35, 0.95), S(1.62, 0.52), S(1.9, 0.2), [0.172, -0.02, -0.108], [0.15, -0.055, -0.14]], r0: 0.04, r1: 0.016, flat: 0.52, K: 2.0, G: 0.5, suck: true, curl: 1.0 },
-      { pts: [IN(2.62, 0.85), S(2.76, 0.4), S(2.86, -0.02), [0.05, -0.1, -0.2]], r0: 0.044, r1: 0.017, flat: 0.52, K: 1.8, G: 0.6, suck: true, curl: 1.0 },
+      { pts: [IN(-2.5, 0.95), S(-2.66, 0.44), S(-2.8, -0.06), [-0.062, -0.16, -0.2], [-0.07, -0.236, -0.214]], r0: 0.056, r1: 0.021, flat: 0.52, K: 1.3, G: 0.9, suck: true, curl: 0.85 },
     ])(),
     cap: { pole: [0.52, 0.8, 0.3] },
     gear: 'swoop',
@@ -1300,11 +1289,11 @@ function strandSpec(sd, si, capCenter) {
   // curled tip: the end rolls away from the head (toward it for curl < 0) in a tightening spiral
   const pts = curlTip(raw, (sd.curl || 0) * 1.3, outDir);
   const profile = (t) => {
-    let r = lerp(sd.r0, sd.r1 * 0.92, Math.pow(sstep(0.0, 0.88, t), sd.taper ?? 0.78)); // firm taper (taper > 1 stays full longer)
-    if (!sd.noClub) r *= 1 + 0.24 * Math.exp(-(((t - 0.8) / 0.07) ** 2));              // tentacle club before the tip
-    return r * lerp(1, 0.2, sstep(0.84, 1, t));                                          // taper out to a point (art pass 1)
+    let r = lerp(sd.r0, sd.r1 * 1.2, Math.pow(sstep(0.0, 0.88, t), sd.taper ?? 0.78)); // firm taper (taper > 1 stays full longer)
+    if (!sd.noClub) r *= 1 + 0.16 * Math.exp(-(((t - 0.78) / 0.07) ** 2));             // tentacle club before the tip
+    return r * lerp(1, 0.12, sstep(0.72, 1, t));                                         // long clean taper to a point
   };
-  const rk = (sd.rMain ?? 1) * 0.93;   // art pass 1: slightly thinner strands → clearer separation between tentacles
+  const rk = (sd.rMain ?? 1) * 1.05;  // chunky pass: fewer locks, each one thicker (Splatoon reads as sculpted shapes)
   const radius = (t) => rk * profile(t);
   // lens-shaped ribbon: thin crisp edges, a soft ridge along the top, flatter sucker side underneath.
   // Fin strands (out: 'x') are flattened sideways instead (a mohawk blade) with a symmetric lens section.
@@ -1326,7 +1315,8 @@ function strandSpec(sd, si, capCenter) {
   // half-thickness toward the scalp normal (how far the strand's top stands off its centreline)
   const top = (t) => (fin ? 1 : 1.2 * flat(t)) * radius(t);
   // sculpted locks (bangs): extra tentacle locks fanned + layered round this spine; they ride its bones
-  const locks = (sd.locks || []).map((L, li) => {
+  const locks = (sd.locks || []).slice(0, 1).map((L0, li) => {
+    const L = { ...L0, h: (L0.h ?? 0) + 0.014 };   // chunky pass: lift the tab off the scalp so it reads as a lock, not a sheet
     const lp = lockSpines(surf, [L], outDir)[0];
     const ltw = L.tw ?? (li % 2 ? 0.3 : -0.3);
     const ls = new TentacleSurface(lp, { radius: (t) => (L.r ?? 0.95) * profile(t), flat: (t) => Math.min(0.9, flat(t) * (L.flat ?? 1.5)), twist: (t) => ltw * sstep(0.1, 0.8, t), section, outward, transport: !fin });

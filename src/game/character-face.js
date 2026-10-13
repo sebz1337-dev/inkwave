@@ -33,7 +33,7 @@ const sminK = (a, b, k) => { const h = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1); r
 export const HEAD_C = new V3(0, 1.214, 0.012);
 // The reference sculpt (faceShape 0). HR is mutated by setFaceShape() and read by headShape(); everything that depends
 // on the sculpt (carrier grid, eye frames, hair cap, AO) is derived from it.
-const HR0 = { x: 0.186, y: 0.168, z: 0.168 };   // wider than tall: flatter cranium, bigger face plane (art pass 1)
+const HR0 = { x: 0.196, y: 0.180, z: 0.176 };   // chibi pass: bigger head, still wider than tall (flatter cranium)
 const HR = { ...HR0 };
 /** Face-shape options (style.faceShape). Index 0 is the art-pass default sculpt; the others scale a few terms.
  *  APPEND-ONLY: 0 is what every saved look and every bot already has. */
@@ -65,7 +65,7 @@ export const FACE_BONES = { head: 4, eyeL: 19, eyeR: 20 };
  *  fringe locks instead of one smooth helmet edge (art pass 1); it fades out toward the temples and nape. */
 export function hairline(az) {
   const a = Math.abs(az) / Math.PI;
-  let h = lerp(0.58, 0.3, sstep(0.1, 0.42, a));
+  let h = lerp(0.72, 0.34, sstep(0.1, 0.42, a));
   h = lerp(h, -0.8, sstep(0.5, 0.96, a));
   h += 0.022 * Math.cos(az * 9) * (1 - sstep(0.45, 0.78, a));
   return h;
@@ -193,7 +193,7 @@ const RES = [
 // l0: aperture centre λ · close: where the lids meet (fraction up from the lower lid) · over: upper-lid overshoot ·
 // lidU/lidL: lid shell radius (eye space, 1 = eyeball) · k: lid/socket blend · dip: socket hollow · apex: eyeball apex
 // depth under the (recessed) skin · yaw: eye axis turned outward · rest: iris rest yaw (converges the gaze) · iris/pupil radii
-export const EYEB = { rx: 0.054, ry: 0.0655, rz: 0.036, xh: 0.55, hu: 0.68, hl: 0.63, l0: 0.0, close: 0.22, over: 0.035,
+export const EYEB = { rx: 0.060, ry: 0.073, rz: 0.040, xh: 0.66, hu: 0.82, hl: 0.76, l0: 0.0, close: 0.22, over: 0.035,
   lidU: 1.075, lidL: 1.05, k: 0.07, dip: 0.055, apex: 0.0008, yaw: 0.2, rest: -0.06, iris: 0.42, cornea: 0.045 };
 const lamU = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 + EYEB.hu * Math.sqrt(q); };
 const lamL = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 - EYEB.hl * Math.sqrt(q); };
@@ -371,7 +371,7 @@ function piecewise(knots, rho, step) {
 const nearestIdx = (arr, v) => { let b = 0; for (let i = 1; i < arr.length; i++) if (Math.abs(arr[i] - v) < Math.abs(arr[b] - v)) b = i; return b; };
 
 // rectangles cut out of the carrier (az / el knots are exact grid lines)
-const EYE_RECT = { az0: 0.085, az1: 0.625, el0: -0.25, el1: 0.44 };
+const EYE_RECT = { az0: 0.05, az1: 0.70, el0: -0.26, el1: 0.52 };   // must contain the aperture patch (chibi eyes)
 const MOUTH_RECT = { az: 0.3, el0: -0.6, el1: -0.27 };
 
 // ------------------------------------------------------------------------------------------------
