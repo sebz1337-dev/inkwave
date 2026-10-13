@@ -133,15 +133,12 @@ ${BUMP}
 // ================================================================================================
 const FACE_GLSL = /* glsl */`
 float iwSmax(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (a - b) / k, 0.0, 1.0); return mix(b, a, h) + k * h * (1.0 - h); }
-// Inkling eye mask: a bold ring around each eye's socket in (az, el) space, with axes scaled by the aperture
-// (uEyeAp = xh, hu, hl, l0) so it follows eyeSize. Thick over the upper lid, thinner under it. > 0 inside the band.
+// Inkling eye marking: a soft dark patch around each eye's socket in (az, el) space, with axes scaled by the aperture
+// (uEyeAp = xh, hu, hl, l0) so it follows eyeSize. > 0 inside the patch; the shader feathers the edge like paint.
 float iwMaskSD(float az, float el, vec4 ap) {
   float sx = ap.x / 0.74, sy = ap.y / 0.90;                 // calibrated to the default aperture
-  vec2 q = vec2((abs(az) - 0.36) / (0.36 * sx), (el - 0.06) / (0.40 * sy));
-  float rr = length(q);
-  float up = clamp(q.y, -1.0, 1.0);
-  float wid = 0.30 + 0.30 * smoothstep(-0.8, 0.6, up);      // band thickness, heavier over the lid
-  return min(rr - (1.0 - wid), 1.0 - rr);
+  vec2 q = vec2((abs(az) - 0.36) / (0.34 * sx), (el - 0.06) / (0.40 * sy));
+  return 1.0 - length(q);
 }
 float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.52, 0.30, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
@@ -237,8 +234,9 @@ export function makeSkinMaterial(u, skinHex) {
           float hs = el - iwHairline(az) + 0.004;
           float hw = max(fwidth(hs), 1e-4);
           iwHairP = smoothstep(-hw, hw, hs);
-          float capShadow = smoothstep(-0.09, 0.0, hs) * (1.0 - iwHairP);
-          diffuseColor.rgb *= 1.0 - 0.22 * capShadow;
+          float capShadow = smoothstep(-0.13, 0.005, hs) * (1.0 - iwHairP);
+          diffuseColor.rgb *= 1.0 - 0.30 * capShadow;
+          iwAO *= 1.0 - 0.12 * capShadow;                                   // the cap/hair sits on the skin
           diffuseColor.rgb = mix(diffuseColor.rgb, uTeam * 0.55, iwHairP);
           // ---- jaw crease: a soft shadow along the jaw line (chin → ear) so the jaw reads without a sculpt step
           {
@@ -279,14 +277,13 @@ export function makeSkinMaterial(u, skinHex) {
           // ---- mask: a bold ring around each eye's socket, axes scaled by the aperture (follows eyeSize), plus the
           //      bridge bar joining the two across the nose; near-black with a faint cool tint, satin, feathered
           float sd = iwMaskSD(az, el, uEyeAp);
-          float w = clamp(fwidth(sd), 1e-4, 0.04);
-          float rimK = smoothstep(-0.055 - w, 0.055 + w, sd);   // soft feathered edge, like the reference's paint
-          float bAz = (abs(az) - 0.07) / 0.15, bEl = (el - 0.06) / 0.07;
-          float bridge = 1.0 - smoothstep(0.62, 1.05, length(vec2(bAz, bEl)));
+          float rimK = smoothstep(-0.16, 0.02, sd);             // soft painted patch, feathered like the reference
+          float bAz = (abs(az) - 0.07) / 0.16, bEl = (el - 0.06) / 0.085;
+          float bridge = 1.0 - smoothstep(0.55, 1.0, length(vec2(bAz, bEl)));
           iwVisor = max(rimK, bridge);
           vec3 vc = mix(vec3(0.012, 0.0135, 0.02), vec3(0.018, 0.021, 0.032), smoothstep(-0.1, 0.5, el));
-          diffuseColor.rgb = mix(diffuseColor.rgb, vc, iwVisor);
-          iwSSS *= 1.0 - 0.88 * iwVisor;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vc, iwVisor * 0.94);
+          iwSSS *= 1.0 - 0.8 * iwVisor;
           // ---- lid margin (uv.x: rolls under the eyeball): wet, a touch warmer than the lacquer
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.06, 0.035, 0.045), vIwUv.x);
           iwWet = max(iwWet, vIwUv.x);
@@ -1152,14 +1149,14 @@ export function makeHairMaterial(u) {
             if (iwCup > 0.5) {
               // modelled suction cup: ring 0 = dish centre, 1 = rim top, → 1.4 = foot on the skin
               float ring = iwCup - 1.0;
-              vec3 rimC = mix(tc, vec3(1.0), 0.42);
-              vec3 dish = mix(core * 0.38, core * 0.8, smoothstep(0.15, 0.6, ring));   // dark mouth → deep dish wall
-              vec3 cupC = ring < 1.0 ? mix(dish, rimC, smoothstep(0.55, 0.9, ring)) : mix(rimC, diffuseColor.rgb, smoothstep(1.02, 1.3, ring));
+              vec3 rimC = mix(tc, vec3(1.0), 0.28);
+              vec3 dish = mix(core * 0.52, core * 0.86, smoothstep(0.15, 0.6, ring));   // soft dish, no hard mouth
+              vec3 cupC = ring < 1.0 ? mix(dish, rimC, smoothstep(0.55, 0.95, ring)) : mix(rimC, diffuseColor.rgb, smoothstep(1.02, 1.45, ring));
               // cups only a few pixels wide melt into the arm (no shimmering rims at mid distance)
               float cupLod = 1.0 - smoothstep(0.3, 0.7, fwidth(ring));
-              diffuseColor.rgb = mix(mix(diffuseColor.rgb, rimC, 0.35), cupC, cupLod);
-              iwAO *= mix(1.0, ring < 1.0 ? mix(0.55, 1.0, smoothstep(0.1, 0.8, ring)) : mix(1.0, 0.5, smoothstep(1.12, 1.4, ring)), cupLod);
-              iwGumThin = ring < 1.0 ? 0.35 + 0.5 * smoothstep(0.4, 1.0, ring) : 0.6;
+              diffuseColor.rgb = mix(mix(diffuseColor.rgb, rimC, 0.20), cupC, cupLod);
+              iwAO *= mix(1.0, ring < 1.0 ? mix(0.74, 1.0, smoothstep(0.1, 0.85, ring)) : mix(1.0, 0.72, smoothstep(1.15, 1.5, ring)), cupLod);
+              iwGumThin = ring < 1.0 ? 0.4 + 0.5 * smoothstep(0.4, 1.0, ring) : 0.6;
               iwSuck = 1.0;
             } else if (on > 0.75 && t > 0.3 && t < 0.97 && cs < -0.15) {
               // printed suction cups (low detail tiers only): two staggered rows along the underside

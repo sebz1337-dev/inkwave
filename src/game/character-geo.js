@@ -1284,11 +1284,11 @@ function strandSpec(sd, si, capCenter) {
   // curled tip: the end rolls away from the head (toward it for curl < 0) in a tightening spiral
   const pts = curlTip(raw, (sd.curl || 0) * 1.3, outDir);
   const profile = (t) => {
-    let r = lerp(sd.r0, sd.r1 * 1.9, Math.pow(sstep(0.0, 0.88, t), sd.taper ?? 0.78)); // firm taper (taper > 1 stays full longer)
+    let r = lerp(sd.r0, sd.r1 * 2.2, Math.pow(sstep(0.0, 0.88, t), sd.taper ?? 0.78)); // firm taper (taper > 1 stays full longer)
     if (!sd.noClub) r *= 1 + 0.16 * Math.exp(-(((t - 0.78) / 0.07) ** 2));             // tentacle club before the tip
-    return r * lerp(1, 0.14, sstep(0.78, 1, t));                                         // long clean taper to a point
+    return r * lerp(1, 0.16, sstep(0.78, 1, t));                                         // long clean taper to a point
   };
-  const rk = (sd.rMain ?? 1) * 1.45;  // chunky pass 2: few locks, each one exaggerated (Splatoon reads as sculpted shapes)
+  const rk = (sd.rMain ?? 1) * 1.75;  // chunky pass 3: fewer locks, each one fat (Splatoon reads as sculpted shapes)
   const radius = (t) => rk * profile(t);
   // lens-shaped ribbon: thin crisp edges, a soft ridge along the top, flatter sucker side underneath.
   // Fin strands (out: 'x') are flattened sideways instead (a mohawk blade) with a symmetric lens section.
@@ -1311,10 +1311,11 @@ function strandSpec(sd, si, capCenter) {
   const top = (t) => (fin ? 1 : 1.2 * flat(t)) * radius(t);
   // sculpted locks (bangs): extra tentacle locks fanned + layered round this spine; they ride its bones
   const locks = (sd.locks || []).slice(0, 1).map((L0, li) => {
-    const L = { ...L0, h: (L0.h ?? 0) + 0.014 };   // chunky pass: lift the tab off the scalp so it reads as a lock, not a sheet
+    // chunky pass 3: ONE wide wedge per style, lifted off the scalp, a little shorter than before
+    const L = { ...L0, h: (L0.h ?? 0) + 0.02, len: (L0.len ?? 1) * 0.85 };
     const lp = lockSpines(surf, [L], outDir)[0];
     const ltw = L.tw ?? (li % 2 ? 0.3 : -0.3);
-    const ls = new TentacleSurface(lp, { radius: (t) => (L.r ?? 0.95) * profile(t), flat: (t) => Math.min(0.9, flat(t) * (L.flat ?? 1.05)), twist: (t) => ltw * sstep(0.1, 0.8, t), section, outward, transport: !fin });
+    const ls = new TentacleSurface(lp, { radius: (t) => (L.r ?? 1.35) * profile(t), flat: (t) => Math.min(0.95, flat(t) * (L.flat ?? 1.45)), twist: (t) => ltw * sstep(0.1, 0.8, t), section, outward, transport: !fin });
     // lock param → main spine param (drives the shared bone weights): nearest main sample, kept monotonic
     const map = new Float32Array(65); let j0 = 0; const q = new V3();
     for (let k = 0; k <= 64; k++) {

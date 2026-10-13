@@ -212,10 +212,11 @@ export function tentacleTube(S, opts = {}) {
 // ------------------------------------------------------------------------------------------------
 // Suction cups: small ringed cups stamped onto S in two staggered rows along the underside
 // ------------------------------------------------------------------------------------------------
-// cup profile: [radius / R, height / h] from the buried foot (fillet into the skin) → skirt → rolled rim → dish → centre
+// cup profile: [radius / R, height / h] from the buried foot (fillet into the skin) → skirt → rolled rim → dish → centre.
+// One entry must be the rim itself (height ≥ 0.99): suctionCups() finds it to lay out the rim ring.
 const CUP_PROF = {
-  hi: [[1.22, -0.1], [0.98, 0.36], [0.84, 0.94], [0.68, 1.0], [0.55, 0.72], [0.34, 0.3], [0.0, 0.16]],
-  lo: [[1.18, -0.1], [0.92, 0.7], [0.7, 1.0], [0.52, 0.55], [0.0, 0.2]],
+  hi: [[1.20, -0.08], [1.02, 0.30], [0.90, 0.70], [0.78, 0.95], [0.70, 1.0], [0.55, 0.80], [0.36, 0.42], [0.0, 0.22]],
+  lo: [[1.18, -0.08], [1.0, 0.50], [0.82, 0.90], [0.70, 1.0], [0.50, 0.62], [0.0, 0.26]],
 };
 /**
  * opts: rows [{ th, phase }] (section angles; phase 0..1 staggers the row), from/to (t range), size(t) → cup radius R (m),
