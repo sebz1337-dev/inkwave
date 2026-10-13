@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>INKWAVE — Character Sculptor & Editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  @font-face { font-family: 'Rubik'; src: url('../assets/fonts/Rubik-latin.woff2') format('woff2'); font-weight: 400 900; }
+  @font-face { font-family: 'Titan One'; src: url('../assets/fonts/TitanOne-latin.woff2') format('woff2'); }
+  :root {
+    --bg: rgba(18, 20, 28, 0.90);
+    --panel-bg: rgba(14, 16, 23, 0.82);
+    --line: rgba(255,255,255,0.09);
+    --fg: #eef1f6;
+    --dim: #9aa3b2;
+    --acc: #ff8a14;
+    --acc-hover: #ff9d3b;
+    --cyan: #22d3ee;
+    --magenta: #ec4899;
+  }
+  html, body {
+    margin: 0; height: 100%; width: 100%; background: #0c0d12;
+    overflow: hidden; font-family: 'Rubik', system-ui, sans-serif;
+    color: var(--fg); user-select: none;
+  }
+  canvas { display: block; width: 100vw; height: 100vh; }
+
+  /* Overlay Reference Layer */
+  #overlay-container {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #overlay-img {
+    max-width: none; max-height: none; pointer-events: auto;
+    cursor: grab; display: none; opacity: 0.5;
+    transform-origin: center center;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  }
+  #overlay-img:active { cursor: grabbing; }
+
+  /* Top quick bar */
+  #topbar {
+    position: fixed; top: 12px; left: 16px; right: 380px; z-index: 10;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: var(--bg); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px;
+  }
+  .brand {
+    font-family: 'Titan One', sans-serif; font-size: 17px;
+    letter-spacing: 0.5px; margin-right: 8px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .brand span { color: var(--acc); }
+  .brand small { font-family: 'Rubik'; font-size: 11px; color: var(--dim); margin-left: 6px; font-weight: 500; }
+
+  .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+  .btn-group { display: inline-flex; gap: 2px; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 2px; }
+
+  button {
+    font: inherit; font-weight: 600; font-size: 11px; color: var(--fg);
+    background: rgba(255,255,255,0.06); border: 1px solid transparent;
+    border-radius: 6px; padding: 4px 8px; cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  button:hover { background: rgba(255,255,255,0.14); }
+  button:active { transform: scale(0.97); }
+  button.on { background: var(--acc); color: #16171c; }
+  button.primary { background: var(--acc); color: #16171c; font-weight: 700; }
+  button.primary:hover { background: var(--acc-hover); }
+
+  /* Floating Sidebar */
+  #sidebar {
+    position: fixed; top: 12px; right: 16px; bottom: 12px; width: 350px;
+    background: var(--bg); backdrop-filter: blur(14px);
+    border: 1px solid var(--line); border-radius: 14px;
+    display: flex; flex-direction: column; z-index: 10; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #sidebar-header {
+    padding: 12px 14px 10px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #sidebar-header h2 { margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); }
+  #sidebar-scroll {
+    flex: 1; overflow-y: auto; padding: 10px 14px 20px;
+  }
+  #sidebar-scroll::-webkit-scrollbar { width: 6px; }
+  #sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+  /* Section accordions */
+  details.sec {
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.02); overflow: hidden;
+  }
+  details.sec[open] { background: rgba(255,255,255,0.035); }
+  summary {
+    padding: 8px 10px; font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; cursor: pointer; color: var(--fg); list-style: none;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '▾'; font-size: 12px; color: var(--dim); transition: transform .15s; }
+  details.sec[open] summary::after { transform: rotate(180deg); }
+  .sec-body { padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); }
+
+  /* Slider Row */
+  .sl-row {
+    display: grid; grid-template-columns: 105px 1fr 48px; align-items: center;
+    gap: 8px; font-size: 11px; color: var(--dim);
+  }
+  .sl-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sl-row input[type="range"] {
+    width: 100%; accent-color: var(--acc); cursor: pointer; height: 14px;
+  }
+  .sl-row input[type="number"] {
+    width: 100%; background: rgba(0,0,0,0.35); border: 1px solid var(--line);
+    border-radius: 4px; color: var(--fg); font-size: 10.5px; padding: 2px 4px;
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .sl-row input[type="number"]:focus { outline: none; border-color: var(--acc); }
+
+  /* Color/Outfit swatches */
+  .sw-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .sw { width: 22px; height: 22px; padding: 0; border-radius: 6px; display: inline-flex; overflow: hidden; cursor: pointer; }
+  .sw i { flex: 1; height: 100%; }
+
+  /* Modal */
+  #modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    z-index: 50; display: none; align-items: center; justify-content: center;
+  }
+  #modal.open { display: flex; }
+  .modal-box {
+    width: 600px; max-width: 90vw; background: #141721; border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px; box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .modal-box h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--fg); display: flex; justify-content: space-between; }
+  .modal-box textarea {
+    width: 100%; height: 280px; box-sizing: border-box; background: #0c0e14;
+    border: 1px solid var(--line); border-radius: 8px; color: #a5f3fc;
+    font-family: monospace; font-size: 11px; padding: 10px; resize: none;
+  }
+  .modal-box .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* Toast Notification */
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(40px);
+    background: var(--acc); color: #16171c; font-weight: 700; font-size: 12px;
+    padding: 8px 16px; border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none; transition: transform .2s ease, opacity .2s ease; z-index: 100;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* Wireframe overlay HUD */
+  #info-hud {
+    position: fixed; left: 16px; bottom: 16px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px;
+    font-size: 11px; color: var(--dim); pointer-events: none; z-index: 10;
+  }
+  #info-hud b { color: var(--fg); }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three/build/three.module.js", "three/addons/": "../vendor/three/jsm/" } }
+</script>
+</head>
+<body>
+
+<div id="overlay-container">
+  <img id="overlay-img" src="" alt="Reference Image" />
+</div>
+
+<div id="topbar">
+  <div class="brand">INK<span>WAVE</span><small>Sculptor & Editor</small></div>
+
+  <div class="sep"></div>
+
+  <div class="btn-group">
+    <button id="cam-front" class="on" title="Orthographic Front view">Front (Flat)</button>
+    <button id="cam-front-persp" title="Perspective Front view">Front 3D</button>
+    <button id="cam-34" title="3/4 Anime angle">3/4 View</button>
+    <button id="cam-side" title="Side Profile">Profile</button>
+    <button id="cam-eyes" title="Close-up on Eyes & Nose">Eyes Zoom</button>
+    <button id="cam-mouth" title="Close-up on Mouth">Mouth Zoom</button>
+    <button id="cam-full" title="Full Body View">Full Body</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="btn-group">
+    <button id="view-textured" class="on">Textured</button>
+    <button id="view-clay">Clay</button>
+    <button id="view-wire">Wireframe</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <button id="btn-toggle-overlay" title="Toggle Reference Image (O)">Overlay Image</button>
+  <button id="btn-export-code" class="primary">Export Code</button>
+</div>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h2>Sculpt Controls</h2>
+    <div style="display:flex; gap:6px;">
+      <button id="btn-reset-stable" title="Reset all sliders to stable commit">Reset Baseline</button>
+      <button id="btn-preset-chibi" class="primary" title="Load Splatoon Chibi tuned proportions">Splatoon Chibi</button>
+    </div>
+  </div>
+
+  <div id="sidebar-scroll">
+
+    <!-- 1. HEAD SILHOUETTE -->
+    <details class="sec" open>
+      <summary>1. Head Dimensions & Silhouette</summary>
+      <div class="sec-body" id="sec-head"></div>
+    </details>
+
+    <!-- 2. JAW & CHIN -->
+    <details class="sec" open>
+      <summary>2. Jaw Taper & Chin Contour</summary>
+      <div class="sec-body" id="sec-jaw"></div>
+    </details>
+
+    <!-- 3. CHEEKS & MID-FACE -->
+    <details class="sec" open>
+      <summary>3. Cheeks & Mid-Face</summary>
+      <div class="sec-body" id="sec-cheeks"></div>
+    </details>
+
+    <!-- 4. EYES & BROWS -->
+    <details class="sec" open>
+      <summary>4. Eyes, Sockets & Brow</summary>
+      <div class="sec-body" id="sec-eyes"></div>
+    </details>
+
+    <!-- 5. INKLING MASK -->
+    <details class="sec" open>
+      <summary>5. Eye Mask (Anime Eyeliner)</summary>
+      <div class="sec-body" id="sec-mask"></div>
+    </details>
+
+    <!-- 6. NOSE & MOUTH -->
+    <details class="sec" open>
+      <summary>6. Nose & Mouth</summary>
+      <div class="sec-body" id="sec-nose-mouth"></div>
+    </details>
+
+    <!-- 7. EARS -->
+    <details class="sec">
+      <summary>7. Squid Fin Ears</summary>
+      <div class="sec-body" id="sec-ears"></div>
+    </details>
+
+    <!-- 8. HAIR & STYLE -->
+    <details class="sec">
+      <summary>8. Hair Style & Colors</summary>
+      <div class="sec-body" id="sec-hair"></div>
+    </details>
+
+    <!-- 9. REFERENCE OVERLAY SETTINGS -->
+    <details class="sec">
+      <summary>9. Reference Overlay Settings</summary>
+      <div class="sec-body" id="sec-overlay"></div>
+    </details>
+
+  </div>
+</div>
+
+<div id="info-hud">
+  <span>Triangles: <b id="hud-tris">—</b></span> · 
+  <span>Draws: <b id="hud-draws">—</b></span> · 
+  <span>FPS: <b id="hud-fps">60</b></span>
+</div>
+
+<div id="modal">
+  <div class="modal-box">
+    <h3>
+      <span>Exported JavaScript Configuration</span>
+      <button id="modal-close" style="padding:2px 8px;">✕</button>
+    </h3>
+    <p style="margin:0; font-size:11px; color:var(--dim);">
+      Copy and paste this config object directly into <code>src/game/character-face.js</code>:
+    </p>
+    <textarea id="modal-code" readonly></textarea>
+    <div class="actions">
+      <button id="btn-copy-code" class="primary">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">Copied to clipboard!</div>
+
+<script type="module" src="./character-editor.js"></script>
+</body>
+</html>

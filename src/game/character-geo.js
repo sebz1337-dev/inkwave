@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CS, MC, PART } from './character-mats.js';
 import { addBodyLimbs, addOutfit, bakeBodyAO, bodyLevel, tankGlass, armRadiusAt, armFlatAt, teeSurfacePoint } from './character-outfit.js';
-import { HEAD_C, EYE, MOUTH, BROW, EAR, headShape, hairline, addHeadSkin, addEyeballs, JAW_PIVOT, FACE_BONES } from './character-face.js';
+import { HEAD_C, EYE, MOUTH, BROW, EAR, headShape, hairline, addHeadSkin, addEyeballs, JAW_PIVOT, FACE_BONES, clearFaceCache } from './character-face.js';
 import { TentacleSurface, tentacleTube, suctionCups, curlTip, lockSpines, spineSamples, hairDetail, hairQuality } from './character-hair.js';
 
 const V3 = THREE.Vector3;
@@ -1685,6 +1685,12 @@ function buildSquid(lod = 'hero') {
 // ------------------------------------------------------------------------------------------------
 const _shared = new Map();
 const _hair = new Map();
+export function clearGeoCache() {
+  _shared.clear();
+  _hair.clear();
+  _inv.clear();
+  clearFaceCache();
+}
 /** Shared kid meshes for a LOD tier ('hero' default · 'game' · 'far'); the body/outfit detail also follows the quality. */
 export function getKidShared(lod = 'hero') {
   const key = lod + '|' + bodyLevel(lod);
