@@ -14,7 +14,7 @@
 // Debug handle (G.net.mock): auto(on) · add({ name, team, weapon, style, ready }) → id · drop(id) · ready(id, v) ·
 // emote(id, name) · swap(id, { weapon, style }) · fill(n) · clear() · host(id) · startMatch() · endMatch() · lose(msg)
 import { G } from '../core/ctx.js';
-import { WEAPON_ORDER, MAPS, TEAM_PALETTES, mapNoBots, mapBossOk, bossFallbackMap, noBotsStartBlock } from '../config.js';
+import { WEAPON_ORDER, MAPS, TEAM_PALETTES, MATCH, mapNoBots, mapBossOk, bossFallbackMap, noBotsStartBlock } from '../config.js';
 import * as LOOK from '../game/character-style.js';
 import { ERR, netError, codeFromText } from './errors.js';
 
@@ -88,7 +88,7 @@ export class MockNet {
     this.lobby = {
       map: MAPS.some((m) => m.id === s.lastStage) ? s.lastStage : MAPS[0].id,
       time: (s.stageTimes && s.stageTimes[s.lastStage]) === 'dusk' ? 'dusk' : 'day',
-      duration: s.matchLength === 90 ? 90 : 180, bots: true, difficulty: s.difficulty || 'normal',
+      duration: MATCH.durations.includes(s.matchLength) ? s.matchLength : MATCH.defaultDuration, bots: true, difficulty: s.difficulty || 'normal',
       palette: G.game && G.game.paletteIndex ? G.game.paletteIndex() : 0,
       players: [this._me(name, 0, true)], maxPlayers: 8,
     };
@@ -122,7 +122,7 @@ export class MockNet {
     const hostId = this._id();
     const host = this._bot({ id: hostId, team: 0, host: true, ready: true });
     this.lobby = {
-      map: pick(MAPS).id, time: rnd() < 0.4 ? 'dusk' : 'day', duration: rnd() < 0.3 ? 90 : 180, bots: rnd() < 0.8,
+      map: pick(MAPS).id, time: rnd() < 0.4 ? 'dusk' : 'day', duration: pick(MATCH.durations), bots: rnd() < 0.8,
       difficulty: pick(['easy', 'normal', 'normal', 'hard']), palette: (rnd() * TEAM_PALETTES.length) | 0, players: [host], maxPlayers: 8,
     };
     if (mapNoBots(this.lobby.map)) this.lobby.bots = false;   // (the stage rules, as a real host applies them)

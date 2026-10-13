@@ -243,7 +243,7 @@ export class NetSession {
     const l = this.lobby, wasMap = l.map;
     if (s.map && MAPS.some((m) => m.id === s.map)) l.map = s.map;
     if (s.time === 'day' || s.time === 'dusk') l.time = s.time;
-    if (s.duration) l.duration = Math.max(60, Math.min(600, +s.duration | 0));
+    if (s.duration) l.duration = Math.max(60, Math.min(MATCH.maxDuration, +s.duration | 0));
     if (s.bots != null) this._botsPref = !!s.bots;
     if (s.difficulty && ['easy', 'normal', 'hard'].includes(s.difficulty)) l.difficulty = s.difficulty;
     if (Number.isInteger(s.palette) && s.palette >= 0 && s.palette < TEAM_PALETTES.length) l.palette = s.palette;

@@ -157,7 +157,7 @@ Reviewed, deliberately **not** ported:
 | `PLAYER.hp 100 → 300` (`ab788da`) → `600` (`ac741b6`) | **Kept 100** (owner's call). Bundled with their split-screen work and **never accompanied by a weapon-damage retune**, so it is a ~6× TTK balance change, not a setting. Revisit only together with per-weapon damage tuning. |
 | `defaultDuration 600` (10-min default round) | **Kept 180**. The long options are additive here; norfan's 10-min default is not followed. |
 | `_styleCache` blank-menu fix (`f46b406`) | N/A here: our `_style()` already reads `(this._styleCache || {})` and `_saveStyle` assigns the object itself; norvan indexed `_styleCache[idx]` before init. |
-| `src/net/mock.js:91` still maps `matchLength === 90 ? 90 : 180` | Dev-only stand-in for `G.net`; it is the one place that does not know the new lengths. Harmless offline, fix if the mock is ever used for a long-round demo. |
+| `src/net/mock.js` duration handling + `src/net/session.js:246` | **Fixed** (was the mock's `90 ? 90 : 180` and the online clamp `60..600`). Mock `create()` now uses the catalog — `MATCH.durations.includes(s.matchLength) ? s.matchLength : MATCH.defaultDuration` — and its `join()` host picks `pick(MATCH.durations)`. Online `setSettings` clamps to `MATCH.maxDuration` instead of a hard 600, so the 20-min option is not silently halved online. Verified with two real clients against a local relay: host `setSettings({duration:1200})` → guest lobby 1200 (screenshot: LENGTH chip on 20 MIN), 300/90 pass, rogue 999999 → 1200, 10 → 60. Note the online path still accepts any length inside `60..MATCH.maxDuration` from a host (the clamp is a range guard, not a catalog check). |
 
 ## 8. Suggested next work
 
