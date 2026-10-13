@@ -1043,6 +1043,7 @@ export class Character {
   _startFade(t) {
     const L = this.lod;
     if (L.to >= 0 || t === L.tier) return;
+    if (G.noLodFade) { this._setTier(t); return; }   // ?fade=0 diagnosis switch
     const A = this.lodSets[L.tier], B = this._tierSet(t);
     for (const m of A.list) { m.material = this._ditherMat(m.userData.iwMat, 0); m.castShadow = false; }
     for (const m of B.list) { m.material = this._ditherMat(m.userData.iwMat, 1); m.castShadow = m.userData.iwShadow; m.visible = true; }

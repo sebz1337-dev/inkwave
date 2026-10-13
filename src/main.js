@@ -61,6 +61,21 @@ class Game {
     // real top-down thumbnails for the stage cards, generated from each layout's geometry
     for (const m of MAPS) { try { m.thumb = layoutThumbSVG(MAP_LAYOUTS[m.layout || m.id], m.theme); } catch (e) { console.warn('thumb', m.id, e); } }
     this.settings = G.settings = { ...loadJSON('inkwave.settings', DEFAULT_SETTINGS), ...CHEAT_DEFAULTS };
+    // ---- diagnosis switches (dev): each isolates one suspected flicker source. Documented in docs/RIG.md.
+    //   ?fx=0 → no bloom     ?shadow=0 → no shadow maps     ?anim=0 → freeze DOM animations     ?fade=0 → no LOD fade
+    {
+      const q = params;
+      const flags = [];
+      if (q.get('fx') === '0') { this.settings.bloom = false; flags.push('fx=0'); }
+      if (q.get('shadow') === '0') { this.settings.shadows = false; flags.push('shadow=0'); }
+      if (q.get('anim') === '0') {
+        const st = document.createElement('style');
+        st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;}';
+        document.head.appendChild(st); flags.push('anim=0');
+      }
+      if (q.get('fade') === '0') { G.noLodFade = true; flags.push('fade=0'); }
+      if (flags.length) console.info('[inkwave] diagnosis flags:', flags.join(' '));
+    }
     setLang(this.settings.lang || 'en');   // before any menu renders (src/i18n/strings.js)
     document.title = t('INKWAVE — Turf Riot');
     // desktop app: the window's fullscreen state is owned by the native shell; mirror it into settings for the menu

@@ -109,6 +109,18 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Flicker diagnosis switchboard (2026-10-13)
+Because the flicker also shows in the main menu (where the lab render is pixel-identical frame to frame), the URL
+now takes isolation switches — flip them one at a time and whichever one silences it names the subsystem:
+| flag | effect |
+|---|---|
+| `?anim=0` | freezes every DOM animation/transition (menu ink drips, logo letters, wipes) |
+| `?fx=0` | bloom/post chain off |
+| `?shadow=0` | shadow maps off |
+| `?fade=0` | no LOD tier cross-fade (tiers switch instantly, no screen-door dither) |
+They print `[inkwave] diagnosis flags: …` to the console and only affect that page load. `?dbgspin=1` (locker) prints
+why a drag was ignored. All dev-only.
+
 ### Flicker, sharp mask, spin fallback (2026-10-13)
 - **"Everything flickers"** was the LOD cross-fade, not noise: two frozen renders in the lab are pixel-identical
   (RMSE 0), but in a match the tier of 8 moving kids changes ~5 times in 2 s, and every change ran a 0.3 s
