@@ -109,6 +109,18 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Bloom fireflies — the "everything flickers" culprit (2026-10-13)
+`?fx=0` silencing it named the pass, and a frozen-frame test settled what it is not: with the game frozen, consecutive
+frames are **pixel-identical (MAE 0) with bloom on *and* off**, so nothing in the post chain is noisy. Under a moving
+camera the bloom instead amplifies: the threshold was `2.4` in HDR linear, so single-pixel glints (sun on wet ink,
+clearcoat highlights on the tentacles) crossed it, and each became a bright mip blob that pops as the camera moves —
+classic bloom fireflies, read as a flickering screen. The softer/shinier hair from the last passes spread those
+highlights over more pixels, which is why it appeared now.
+- **Fix**: a HDR **clamp pass before the bloom pyramid** (`ClampShader`, `uMax = 12`) so single-pixel spikes cannot
+  seed a blob, plus a higher threshold (`BLOOM` 2.4 → 3.2) and slightly lower strength (0.28 → 0.26).
+- The user-facing escape hatch is the existing **Settings → Video → Bloom glow** toggle (persists), and `?fx=0` for a
+  single page load.
+
 ### Flicker diagnosis switchboard (2026-10-13)
 Because the flicker also shows in the main menu (where the lab render is pixel-identical frame to frame), the URL
 now takes isolation switches — flip them one at a time and whichever one silences it names the subsystem:

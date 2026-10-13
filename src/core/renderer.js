@@ -12,7 +12,16 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { QUALITY } from '../config.js';
 import { G } from './ctx.js';
 
-const BLOOM = [0.28, 0.45, 2.4];   // default bloom: strength, radius, HDR threshold
+const BLOOM = [0.26, 0.45, 3.2];   // default bloom: strength, radius, HDR threshold (raised: fewer single-pixel glints)
+// Firefly guard: clamp the HDR frame just before the bloom pyramid. A single pixel far above the threshold (a sun glint
+// on wet ink, a clearcoat highlight, an emissive edge) becomes a bright mip blob that pops as the camera moves —
+// that reads as a flickering screen. Clamping the input kills the spike without touching the rest of the look.
+const ClampShader = {
+  uniforms: { tDiffuse: { value: null }, uMax: { value: 12 } },
+  vertexShader: /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */`uniform sampler2D tDiffuse; uniform float uMax; varying vec2 vUv;
+    void main(){ vec4 c = texture2D(tDiffuse, vUv); gl_FragColor = vec4(min(c.rgb, vec3(uMax)), c.a); }`,
+};
 
 const GradeShader = {
   uniforms: {
@@ -160,6 +169,8 @@ export class Renderer {
       if (this.appleGPU) { const set = ao.setSize.bind(ao); ao.setSize = (sw, sh) => set(Math.ceil(sw / 2), Math.ceil(sh / 2)); }
       comp.addPass(ao);
     }
+    this.clampPass = new ShaderPass(ClampShader);
+    comp.addPass(this.clampPass);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), ...BLOOM);
     this.bloom.enabled = !!(q.bloom && this.settings.bloom);
     comp.addPass(this.bloom);
