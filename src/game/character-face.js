@@ -165,10 +165,12 @@ function headField(p) {
 // Neck: elliptic tube (slight forward lean) unioned with the skull by a smooth minimum
 // ------------------------------------------------------------------------------------------------
 const NECK_Y = [0.84, 0.935, 0.985, 1.04, 1.09, 1.18], NECK_R = [0.0386, 0.0382, 0.0392, 0.0373, 0.0352, 0.0338];
-const neckR = (y) => { let i = 0; while (i < NECK_Y.length - 2 && y > NECK_Y[i + 1]) i++; const t = clamp((y - NECK_Y[i]) / (NECK_Y[i + 1] - NECK_Y[i]), 0, 1); return lerp(NECK_R[i], NECK_R[i + 1], t * t * (3 - 2 * t)); };
+const NECK_R_DEFAULT_HRX = DEFAULT_FACE_PARAMS.hrX;                                   // 0.178 — radii were tuned at this width
+const neckR = (y) => { let i = 0; while (i < NECK_Y.length - 2 && y > NECK_Y[i + 1]) i++; const t = clamp((y - NECK_Y[i]) / (NECK_Y[i + 1] - NECK_Y[i]), 0, 1); return lerp(NECK_R[i], NECK_R[i + 1], t * t * (3 - 2 * t)) * (HR.x / NECK_R_DEFAULT_HRX); };
 const neckZ = (y) => lerp(-0.0135, -0.0035, clamp((y - 0.93) / 0.2, 0, 1));
 function neckField(p) {
-  const dx = p.x / 1.05, dz = (p.z - neckZ(p.y)) / 0.95;
+  const nxs = 1.05 * (HR.x / NECK_R_DEFAULT_HRX);                                     // X aspect scales with head width
+  const dx = p.x / nxs, dz = (p.z - neckZ(p.y)) / 0.95;
   return Math.max(Math.hypot(dx, dz) - neckR(p.y), 0.8 - p.y);
 }
 const NECK_K = 0.017;
