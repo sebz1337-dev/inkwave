@@ -580,7 +580,7 @@ export const PROGRESSION = {
 export const DEFAULT_SETTINGS = {
   lang: 'en',               // ui language: 'en' | 'zh' (src/i18n/strings.js; mirrored in localStorage 'inkwave.lang')
   sensitivity: 1.0,         // mouse multiplier 0.2..3
-  padSensitivity: 1.0,
+  padSensitivity: 1.3,      // right-stick camera multiplier (norfan ac741b6 retune, was 1.0)
   invertY: false,
   fov: 82,                  // horizontal FOV at 16:9, 65..100
   quality: 'high',          // 'low' | 'medium' | 'high' | 'ultra'

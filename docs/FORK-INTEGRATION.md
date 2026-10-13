@@ -115,7 +115,39 @@ jp-font, `touch.css`/phone-layout hunk was dropped.
   (`python`/`python3` are Store stubs), so `serve`/`build` scripts can't run
   there; `node --check` on touched files is the verified gate so far.
 
-## 7. Suggested next work
+## 7. Fork review: norfan + caomeiguojiang (2026-10-13)
+
+Reviewed with temp remotes `norfan` / `caomei` (fetched, `--no-tags`):
+
+* **`caomeiguojiang/inkwave`** `main @ 53b9aa3` — ancestor of our `main`, 0 unique
+  commits. Its only real work is on **`codex/assertok @ 6f26f09`** (15 commits):
+  vendored i18next + 4 locales (`en/ja/zh-Hans/zh-Hant`) *replacing*
+  `src/i18n/strings.js`, self-hosted Swei CJK fonts, `server-node/` relay +
+  Docker/Assertok build, staged startup, upstream-tracking docs. Its tip touches
+  `fxHooks.js`/`netmatch.js`/`main.js` — the same files as our ports (pointer
+  relock, FX retention, respawn), so verify before reusing anything from it.
+* **`norfan/fork-inkwave`** `main @ a012962` — base `98ea296` + 18 commits
+  (+8 720 / −189, 53 files): local split-screen 1–4 players (`src/ui/local4p.js`,
+  renderer splits, per-seat input), phone-as-pad over LAN
+  (`electron/pad-relay.cjs`, `pad.html`, `src/net/padlink.js`, `vendor/qrcode/`,
+  `android-pad/` APK shell, `tools/pad-*.mjs`), phone HUD/labels, per-player
+  names + loadouts, Windows packaging. It touches 13 files we also rewrote since
+  base (`main.js`, `menus.js`, `renderer.js`, `match.js`, `player.js`,
+  `weapons.js`, `hud.js`, `ui.css`, …) — port per feature, never as a merge.
+
+Ported now: `padSensitivity` default `1.0 → 1.3` (`ac741b6`, `src/config.js`) —
+right-stick camera ×1.3 by default. Verified live: Settings → Controls shows
+"Controller sensitivity 1.30×", `__inkwave.settings.padSensitivity === 1.3`.
+
+Reviewed, deliberately **not** ported (not mechanical):
+
+| norfan change | why it is not a cheap port |
+|---|---|
+| `PLAYER.hp 100 → 300` (`ab788da`) → `600` (`ac741b6`) | Bundled with their split-screen work; **no weapon-damage retune** in their branch, so it is a TTK balance change (×6 on our tree), not a setting. Waiting on an explicit call. |
+| `MATCH.durations [90,180] → [300,600,1200]`, `defaultDuration` 180 → 600, `maxDuration` 180 → 1200 | Mechanically safe (`match.js:208` fires the one-minute cue on `time <= 60 && duration > 60`, any length works), but it moves the default round from 3 min to 10 min. Waiting on an explicit call. |
+| `_styleCache` blank-menu fix (`f46b406`) | N/A here: our `_style()` already reads `(this._styleCache || {})` and `_saveStyle` assigns the object itself; norvan indexed `_styleCache[idx]` before init. |
+
+## 8. Suggested next work
 
 1. Playtest this `main` first (cheats/autoplay/GPU paths above).
 2. One branch per deferred block, starting with weapons (`0f1cc4d` family
@@ -123,3 +155,6 @@ jp-font, `touch.css`/phone-layout hunk was dropped.
 3. Fix `README.md:66` upstream URL (`DevFrancois/inkwave`, not `jaydendavisnc`).
 4. Consider `npm run check` in Git Bash (the `for … $(find …)` script is
    bash-only; plain `node --check` was used on Windows instead).
+5. Split-screen + phone-pad (norfan §7) is the largest unported feature block;
+   needs its own branch and a per-seat input/menu wiring pass on this tree.
+
