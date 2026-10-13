@@ -310,7 +310,7 @@ export function makeSkinMaterial(u, skinHex) {
         #ifdef USE_SHEEN
           material.sheenColor *= (1.0 - 0.85 * iwVisor) * (1.0 - iwHairP) * (1.0 - iwWet) * (1.0 - iwTooth) * mix(0.4, 0.22, uSkinLum);
         #endif`,
-      fAO: 'reflectedLight.indirectDiffuse *= iwAO; reflectedLight.indirectSpecular *= mix(1.0, iwAO, 0.8);',
+      fAO: 'reflectedLight.indirectDiffuse *= pow(iwAO, 1.3); reflectedLight.indirectSpecular *= mix(1.0, iwAO, 0.9);',
     });
     // vertex: lids + mouth (before skinning; normals too, so the lids shade as they slide)
     shader.vertexShader = shader.vertexShader
@@ -1176,11 +1176,11 @@ export function makeHairMaterial(u) {
               iwH += 0.0012 * ring - 0.0008 * cup;
             }
             // crevices: the baked occlusion also darkens the direct light a little (shadow maps miss them)
-            diffuseColor.rgb *= mix(0.66, 1.0, vHair.z);
+            diffuseColor.rgb *= mix(0.56, 1.0, vHair.z);
           }
         }
       ` + HURT_FRAG,
-      fRough: 'roughnessFactor = iwGear > 0.5 ? (iwGearCls == 1.0 ? 0.26 : iwGearCls == 2.0 ? 0.85 : iwGearCls == 3.0 ? 0.7 : iwGearCls > 3.5 ? 0.84 : 0.3) : roughnessFactor; roughnessFactor = mix(roughnessFactor, 0.2, iwHurtM); roughnessFactor = mix(roughnessFactor, 0.42, iwSuck * (1.0 - step(0.5, iwCup)));',
+      fRough: 'roughnessFactor = iwGear > 0.5 ? (iwGearCls == 1.0 ? 0.26 : iwGearCls == 2.0 ? 0.85 : iwGearCls == 3.0 ? 0.7 : iwGearCls > 3.5 ? 0.84 : 0.3) : roughnessFactor; roughnessFactor = mix(roughnessFactor * 1.2, roughnessFactor * 0.52, iwTipK); roughnessFactor = mix(roughnessFactor, 0.2, iwHurtM); roughnessFactor = mix(roughnessFactor, 0.42, iwSuck * (1.0 - step(0.5, iwCup)));',
       fMetal: 'metalnessFactor = (iwGear > 0.5 && iwGearCls == 1.0) ? 1.0 : 0.0;',
       fNormal: 'normal = iwBumpN(normal, iwH, -vViewPosition);',
       fEmissive: 'totalEmissiveRadiance += uFlash + (1.0 - iwGear) * uGlow * (0.6 + 0.4 * clamp(vTint + 0.5, 0.0, 1.0)) * (0.7 + 0.6 * iwGumThin);',

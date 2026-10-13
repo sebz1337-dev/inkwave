@@ -361,6 +361,10 @@ const nearestIdx = (arr, v) => { let b = 0; for (let i = 1; i < arr.length; i++)
 // rectangles cut out of the carrier (az / el knots are exact grid lines)
 const EYE_RECT = { az0: 0.03, az1: 0.80, el0: -0.26, el1: 0.62 };   // must contain the aperture patch (chibi eyes)
 const MOUTH_RECT = { az: 0.3, el0: -0.6, el1: -0.27 };
+// Elevation where the carrier switches from the analytic head surface to the jaw/neck profile rays. Keep it BELOW the
+// chin: the two samplers meet with different vertex normals, which shows up as a shading seam across the face if the
+// switch sits at the mouth (that was the "face split in half").
+const LOW_EL = -0.98;
 
 // ------------------------------------------------------------------------------------------------
 // Skin weights (rest-pose position → bones)
@@ -407,7 +411,7 @@ function neckProfiles() {
   const d = new V3(), p = new V3(), P0 = new V3();
   for (let c = 0; c < PROF_COLS; c++) {
     const az = -Math.PI + (c / PROF_COLS) * TAU;
-    dirAE(az, MOUTH_RECT.el0, d); headShape(d.x, d.y, d.z, P0).add(HEAD_C);
+    dirAE(az, LOW_EL, d); headShape(d.x, d.y, d.z, P0).add(HEAD_C);
     // rays from NECK_O: from the jaw-row point down to the collar ring; warm-started bisection
     const v0 = P0.clone().sub(NECK_O); const el0 = Math.asin(v0.y / v0.length());
     const pts = [P0.clone()]; let prevR = v0.length();
@@ -557,7 +561,7 @@ export function buildFaceSkin(lod = 'hero') {
   const nAz = azs.length;
   const mir = (i) => (nAz - i) % nAz;
   const rhoEl = (e) => 1 + 0.35 * gauss(e + 0.14, 0.07) + 0.25 * gauss(e + MOUTH.el * -1, 0.08) - 0.45 * sstep(0.5, 0.75, e);
-  const elsUp = piecewise([MOUTH_RECT.el0, MOUTH_RECT.el1, EYE_RECT.el0, EYE_RECT.el1, 0.62, 0.92], rhoEl, R.step);
+  const elsUp = piecewise([LOW_EL, MOUTH_RECT.el0, MOUTH_RECT.el1, EYE_RECT.el0, EYE_RECT.el1, 0.66, 0.92], rhoEl, R.step);
   const nLow = R.low;
   // global rows: 0 … nLow-1 = jaw/neck profile (bottom first), nLow … = fixed-elevation rows
   const nRows = nLow + elsUp.length;
@@ -584,7 +588,7 @@ export function buildFaceSkin(lod = 'hero') {
     const az = azs[i];
     let n = null;
     if (j > nLow) { n = _cn; headSurfFace(az, elsUp[j - nLow], 0, p, n); }
-    else if (j === nLow) { dirAE(az, elsUp[0], d); headShape(d.x, d.y, d.z, p).add(HEAD_C); }
+    else if (j === nLow) { n = _cn; headSurfFace(az, elsUp[0], 0, p, n); }   // same analytic normal as the row above
     else profilePoint(az, 1 - j / nLow, p);
     const jw = jawCarrier(p), ck = cheekCarrier(p);
     return acc.v(p, { w: skinWeights(p, jw, ck), lid: lidAngles(p), mw: 0, part: 1, n });

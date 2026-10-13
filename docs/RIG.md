@@ -109,6 +109,24 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Face seam, drag-to-spin, gradient gloss, deeper AO (2026-10-13)
+- **The real "split in half"** was the carrier's sampling switch: rows above `nLow` sample the analytic head surface
+  (`headSurfFace`, with its analytic vertex normal) and rows below come from the jaw/neck profile rays with *computed*
+  normals. The switch sat at `el = MOUTH_RECT.el0` (−0.6, the mouth line), so the normal mismatch drew a shading seam
+  straight across the face. `LOW_EL = −0.98` now puts the switch **under the chin**, the seam row takes the same
+  analytic normal as the row above it, and `neckProfiles()` starts from that row too — the seam is under the jaw.
+- **Drag to spin** (`showcase._bindDrag`) had two holes: the `clientX > panelR` gate ignored any drag that began left
+  of the panels (over the kid on smaller windows), and a *pointer-locked* cursor freezes `clientX` so nothing moved at
+  all. It now spins from any drag that does **not** start on an interactive control (`button, input, .iw-ltile, .iw-row,
+  .iw-panel, .iw-labs, .iw-lgrid`), falls back to `movementX` when the pointer is locked, captures the pointer so the
+  drag survives leaving the element, and uses one event path (pointer events, mouse fallback). Verified with synthetic
+  pointer events: drag over the kid spins 2.2 rad, drag starting on a tile spins 0.
+- **Hair gloss gradient**: roughness ramps root → tip (`mix(roughness·1.2, roughness·0.52, iwTipK)`), so the lock is
+  matte at the root and glossy toward the tipped end — no more single hot band across the cap.
+- **AO / contact shading**: the skin's indirect diffuse is `pow(iwAO, 1.3)` with `mix(1.0, iwAO, 0.9)` on the specular,
+  and hair crevices darken harder (0.66 → 0.56): soft contact everywhere under the hair, between locks and in the
+  sockets.
+
 ### Chibi pass 3 — the "cut in half" face, final eyes, jaw crease, ears (2026-10-13)
 - **The under-jaw plane is gone entirely** (this was the real "cut in half": a tilted smooth-min plane, `(0, −1, 0.35)`,
   sliced the *front* of the chin higher than the sides, so it read as a shelf across the face at every head size — it

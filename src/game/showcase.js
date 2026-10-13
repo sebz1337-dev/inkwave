@@ -1059,21 +1059,43 @@ export class Showcase {
   _bindDrag() {
     const el = document.getElementById('app');
     if (!el) return;
-    el.addEventListener('pointerdown', (e) => {
+    // Drag anywhere that is not an interactive control (tiles, buttons, panels) spins the pedestal kid — the old
+    // clientX > panelR gate silently ignored drags over the kid, and a locked pointer froze clientX so nothing moved.
+    const IGNORE = 'button, input, select, textarea, a, .iw-ltile, .iw-row, .iw-panel, .iw-lpanel, .iw-tabs, .iw-lgrid';
+    const down = (e) => {
       if (!PEDESTAL.has(this.mode)) return;
-      const edge = this.ui.s ? this.ui.s.panelR : innerWidth * 0.52;
-      if (e.clientX > edge) { this.drag = { x: e.clientX, t: performance.now() }; this.spinVel = 0; }
-    });
-    addEventListener('pointermove', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      const t = e.target;
+      if (t && t.closest && t.closest(IGNORE)) return;
+      this.drag = { x: e.clientX, t: performance.now(), locked: !!document.pointerLockElement };
+      this.spinVel = 0;
+      if (e.pointerId !== undefined && el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ } }
+    };
+    const hasPE = typeof window.PointerEvent === 'function';
+    const downEv = hasPE ? 'pointerdown' : 'mousedown';
+    const moveEv = hasPE ? 'pointermove' : 'mousemove';
+    const upEv = hasPE ? 'pointerup' : 'mouseup';
+    el.addEventListener(downEv, down, true);
+    const move = (e) => {
       const d = this.drag;
       if (!d) return;
-      const now = performance.now(), dx = e.clientX - d.x, dts = Math.max(0.008, (now - d.t) / 1000);
+      const now = performance.now();
+      // a locked pointer keeps clientX constant: fall back to movementX so the kid still spins
+      const raw = document.pointerLockElement || !hasPE ? (e.movementX || 0) : e.clientX - d.x;
+      const dx = Number.isFinite(raw) ? raw : 0;
+      const dts = Math.max(0.008, (now - d.t) / 1000);
       this.spin += dx * 0.011;
       this.spinVel = lerp(this.spinVel, (dx * 0.011) / dts, 0.5);
       d.x = e.clientX; d.t = now;
       this.sinceDrag = 0;
-    });
-    addEventListener('pointerup', () => { this.drag = null; });
+    };
+    addEventListener(moveEv, move);
+    const up = (e) => {
+      if (this.drag && e && e.pointerId !== undefined && el.releasePointerCapture) { try { el.releasePointerCapture(e.pointerId); } catch { /* ignore */ } }
+      this.drag = null;
+    };
+    addEventListener(upEv, up);
+    if (hasPE) addEventListener('pointercancel', up);
   }
 
   // ---------------------------------------------------------------------------------------------- lifecycle
