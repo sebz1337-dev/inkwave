@@ -78,12 +78,6 @@ export function hairline(az) {
  *  the chin tucks, and a flat under-jaw plane runs from under the chin back to the throat (smooth-min with a plane, so
  *  the jaw line appears wherever it meets the sides). Then the features: brow ridge, recessed mask, button nose with
  *  wings and nostrils, philtrum, mouth mound, mentolabial fold. */
-// under-jaw plane: its depth below HEAD_C follows HR.y, so the jaw+neck union stays consistent for every faceShape
-// (an absolute depth cut the chin off as soon as the sculpt changed — the "head cut in half" bug).
-const JAW_PLANE = { n: new V3(0, -1, 0.35).normalize(), d: 0, k: 0.052 };
-const JAW_D0 = 0.186;                                              // plane through (0, −0.186·HR.y/HR0.y, 0) from HEAD_C...
-const jawDepth = () => (JAW_D0 * HR.y) / HR0.y;                    // ...rising 35 % forward
-JAW_PLANE.d = jawDepth() / Math.hypot(1, 0.35);
 export function headShape(dx, dy, dz, out) {
   let x = dx * HR.x, y = dy * HR.y, z = dz * HR.z;
   const el = Math.asin(clamp(dy, -1, 1)), az = Math.atan2(dx, dz), aa = Math.abs(az);
@@ -108,8 +102,8 @@ export function headShape(dx, dy, dz, out) {
   off += 0.0044 * CUR.chin * Math.exp(-((az / 0.16) ** 2) - (((el + 0.78) / 0.085) ** 2));          // small round chin, pushed forward
   off += 0.0036 * CUR.jaw * Math.exp(-(((aa - 1.02) / 0.26) ** 2) - (((el + 0.42) / 0.13) ** 2));   // jaw corner: a real jawline
   off += 0.0024 * Math.exp(-((az / 0.28) ** 2) - (((el - MOUTH.el) / 0.14) ** 2));      // mouth mound (dental arch)
-  off += 0.0092 * Math.exp(-((az / 0.048) ** 2) - (((el + 0.128) / 0.048) ** 2));         // nose: button tip, a touch sharper (art pass 1)
-  off += 0.0026 * Math.exp(-(((aa - 0.05) / 0.03) ** 2) - (((el + 0.156) / 0.034) ** 2)); // nose wings
+  off += 0.0125 * Math.exp(-((az / 0.055) ** 2) - (((el + 0.125) / 0.05) ** 2));          // nose: button tip
+  off += 0.0034 * Math.exp(-(((aa - 0.055) / 0.032) ** 2) - (((el + 0.152) / 0.034) ** 2)); // nose wings
   off -= 0.0012 * Math.exp(-(((aa - 0.027) / 0.015) ** 2) - (((el + 0.177) / 0.011) ** 2)); // nostrils
   off -= 0.0008 * Math.exp(-((az / 0.07) ** 2) - (((el + 0.215) / 0.022) ** 2));         // subnasal tuck
   off += 0.0012 * Math.exp(-((az / 0.1) ** 2) - (((el + 0.06) / 0.07) ** 2));            // nose bridge
@@ -119,13 +113,8 @@ export function headShape(dx, dy, dz, out) {
   off += 0.0046 * CUR.brow * Math.exp(-(((aa - 0.37) / 0.22) ** 2) - (((el - 0.45) / 0.075) ** 2)); // brow ridge: reads through the mask (art pass 1)
   off += 0.0008 * CUR.brow * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
   off -= 0.0022 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.57) / 0.045) ** 2));          // mentolabial fold
-  let r = Math.hypot(x, y, z);
-  const r1 = r + off;
-  // under-jaw plane (front half only; the round back of the skull and the nape are left alone)
-  const nd = JAW_PLANE.n.y * dy + JAW_PLANE.n.z * dz;
-  let rr = r1;
-  if (nd > 1e-4) { const tp = JAW_PLANE.d / nd; rr = lerp(r1, sminK(r1, tp, JAW_PLANE.k), sstep(-0.55, -0.2, dz)); }
-  return out.set(x, y, z).multiplyScalar(rr / r);
+  const r = Math.hypot(x, y, z), r1 = r + off;
+  return out.set(x, y, z).multiplyScalar(r1 / r);
 }
 const _d = new V3(), _q0 = new V3(), _q1 = new V3(), _q2 = new V3(), _qa = new V3(), _qn = new V3();
 export function dirAE(az, el, out) { const c = Math.cos(el); return out.set(Math.sin(az) * c, Math.sin(el), Math.cos(az) * c); }
@@ -180,10 +169,10 @@ export function faceLevel(lod = 'hero', quality = G.settings?.quality || 'high')
 // mouth: [lip rings, inner-lip roll, cavity rings] · ear: [along, around] · cap: eyeball [rings, segments] · teeth: segments
 const RES = [
   { step: 0.14, low: 4, eye: [2, 1], mouth: [2, 1, 1], ear: [5, 6], cap: [4, 14], teeth: 0 },
-  { step: 0.075, low: 8, eye: [5, 2], mouth: [3, 2, 2], ear: [9, 10], cap: [8, 24], teeth: 6 },
-  { step: 0.058, low: 10, eye: [6, 2], mouth: [4, 2, 3], ear: [12, 14], cap: [10, 30], teeth: 8 },
-  { step: 0.034, low: 18, eye: [11, 3], mouth: [7, 3, 5], ear: [22, 24], cap: [18, 48], teeth: 16 },
-  { step: 0.027, low: 23, eye: [14, 3], mouth: [9, 3, 6], ear: [28, 30], cap: [22, 60], teeth: 22 },
+  { step: 0.075, low: 8, eye: [7, 2], mouth: [3, 2, 2], ear: [9, 10], cap: [8, 24], teeth: 6 },
+  { step: 0.058, low: 10, eye: [9, 3], mouth: [4, 2, 3], ear: [12, 14], cap: [10, 30], teeth: 8 },
+  { step: 0.034, low: 18, eye: [16, 4], mouth: [7, 3, 5], ear: [22, 24], cap: [18, 48], teeth: 16 },
+  { step: 0.027, low: 23, eye: [20, 5], mouth: [9, 3, 6], ear: [28, 30], cap: [22, 60], teeth: 22 },
 ];
 
 // ------------------------------------------------------------------------------------------------
@@ -193,7 +182,7 @@ const RES = [
 // l0: aperture centre λ · close: where the lids meet (fraction up from the lower lid) · over: upper-lid overshoot ·
 // lidU/lidL: lid shell radius (eye space, 1 = eyeball) · k: lid/socket blend · dip: socket hollow · apex: eyeball apex
 // depth under the (recessed) skin · yaw: eye axis turned outward · rest: iris rest yaw (converges the gaze) · iris/pupil radii
-export const EYEB = { rx: 0.068, ry: 0.082, rz: 0.045, xh: 0.64, hu: 0.78, hl: 0.71, l0: 0.0, close: 0.22, over: 0.035,
+export const EYEB = { rx: 0.073, ry: 0.088, rz: 0.048, xh: 0.74, hu: 0.90, hl: 0.82, l0: 0.0, close: 0.22, over: 0.035,
   lidU: 1.075, lidL: 1.05, k: 0.07, dip: 0.055, apex: 0.0008, yaw: 0.18, rest: -0.06, iris: 0.58, cornea: 0.045 };
 const lamU = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 + EYEB.hu * Math.sqrt(q); };
 const lamL = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 - EYEB.hl * Math.sqrt(q); };
@@ -297,7 +286,6 @@ export function setFaceShape(shapeIdx = 0, eyeIdx = 0) {
   const es = EYE_SIZES[wrapN(eyeIdx, EYE_SIZES.length)] || EYE_SIZES[0];
   const hr = sh.hr || [1, 1, 1];
   HR.x = HR0.x * hr[0]; HR.y = HR0.y * hr[1]; HR.z = HR0.z * hr[2];
-  JAW_PLANE.d = jawDepth() / Math.hypot(1, 0.35);   // the under-jaw cut follows the head's height
   CUR.crown = sh.crown ?? 1; CUR.cheek = sh.cheek ?? 1; CUR.jaw = sh.jaw ?? 1; CUR.chin = sh.chin ?? 1; CUR.brow = sh.brow ?? 1;
   // eyes: always start from the tuned defaults so switching back and forth is exact
   const s = es.s ?? 1;
@@ -371,7 +359,7 @@ function piecewise(knots, rho, step) {
 const nearestIdx = (arr, v) => { let b = 0; for (let i = 1; i < arr.length; i++) if (Math.abs(arr[i] - v) < Math.abs(arr[b] - v)) b = i; return b; };
 
 // rectangles cut out of the carrier (az / el knots are exact grid lines)
-const EYE_RECT = { az0: 0.03, az1: 0.72, el0: -0.26, el1: 0.56 };   // must contain the aperture patch (chibi eyes)
+const EYE_RECT = { az0: 0.03, az1: 0.80, el0: -0.26, el1: 0.62 };   // must contain the aperture patch (chibi eyes)
 const MOUTH_RECT = { az: 0.3, el0: -0.6, el1: -0.27 };
 
 // ------------------------------------------------------------------------------------------------
@@ -469,10 +457,10 @@ const _pa = new V3(), _pb = new V3(), _cn = new V3();
 /** Ear frame (also used by the punk hoops in the hair code): root inside the skull, A along the ear, F out of the cup. */
 export function earFrame(sx) {
   const root = headSurfFace(sx * EAR.az, EAR.el, -0.0085, new V3());
-  const A = new V3(sx * 0.63, 0.43, -0.65).normalize();
+  const A = new V3(sx * 0.52, 0.34, -0.78).normalize();
   const F = new V3(sx * 0.46, 0.1, 0.88); F.addScaledVector(A, -F.dot(A)).normalize();
   const W = new V3().crossVectors(A, F).normalize();
-  return { root, A, F, W, L: 0.082, width: (u) => 0.0225 * Math.pow(Math.max(0, 1 - u), 0.8) * sstep(-0.4, 0.28, u) + 0.0011 };
+  return { root, A, F, W, L: 0.074, width: (u) => 0.021 * Math.pow(Math.max(0, 1 - u), 0.55) * sstep(-0.4, 0.28, u) + 0.0011 };
 }
 /**
  * Ear cross-section at u (0 root … 1 tip) in the ear plane: X across (W), Y out of the cup (F). A closed loop built from

@@ -243,6 +243,14 @@ export function makeSkinMaterial(u, skinHex) {
           float capShadow = smoothstep(-0.09, 0.0, hs) * (1.0 - iwHairP);
           diffuseColor.rgb *= 1.0 - 0.22 * capShadow;
           diffuseColor.rgb = mix(diffuseColor.rgb, uTeam * 0.55, iwHairP);
+          // ---- jaw crease: a soft shadow along the jaw line (chin → ear) so the jaw reads without a sculpt step
+          {
+            float jawEl = -0.86 + 0.45 * smoothstep(0.0, 1.15, abs(az));
+            float jl = (el - jawEl) / 0.11;
+            float jawK = (1.0 - smoothstep(0.7, 1.2, abs(jl))) * smoothstep(0.1, 0.55, abs(az));
+            diffuseColor.rgb *= 1.0 - 0.16 * jawK;
+            iwAO *= 1.0 - 0.1 * jawK;
+          }
           // ---- blush: soft warm gradient over the cheek apples (+ uMouth2.w flush), stronger on fair skin
           float bl = exp(-pow((abs(az) - 0.6) / 0.2, 2.0) - pow((el + 0.3) / 0.13, 2.0));
           float blushK = bl * mix(0.3, 0.12, smoothstep(0.35, 0.8, 1.0 - uSkinLum)) * (1.0 + 1.5 * clamp(uMouth2.w, 0.0, 1.0));

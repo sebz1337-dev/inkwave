@@ -109,6 +109,22 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Chibi pass 3 — the "cut in half" face, final eyes, jaw crease, ears (2026-10-13)
+- **The under-jaw plane is gone entirely** (this was the real "cut in half": a tilted smooth-min plane, `(0, −1, 0.35)`,
+  sliced the *front* of the chin higher than the sides, so it read as a shelf across the face at every head size — it
+  survived every depth/blend change). `JAW_PLANE`, `jawDepth` and the cut block are deleted; the jaw is now pure
+  sculpt taper (`x *= 1 − 0.34k − …`) plus the jaw-corner and chin bumps, and the neck union (`sminK(headField,
+  neckField)`) is untouched. Head-shape math is simpler and can no longer cut the face.
+- **Eyes**: the patch now has the ring budget for a bigger opening — `RES[].eye` 11/14 → **16/20** rings at hero/ultra
+  (game 5/6 → 7/9), aperture `xh 0.64 → 0.74`, `hu 0.78 → 0.90`, `hl 0.71 → 0.82`, eyeball 0.073/0.088/0.048,
+  `EYE_RECT` az1 0.72 → 0.80 / el1 0.56 → 0.62. Iris 0.58 of the aperture, pupil 0.42 of the iris.
+- **Lower-face read**: a **jaw crease** is shaded in the skin shader (`jawEl = −0.86 + 0.45·smoothstep(0, 1.15, |az|)`,
+  a soft 16 % darkening with a touch of AO) so the jaw reads as a line without any sculpt step; the nose tip is up to
+  0.0125 with stronger wings.
+- **Ears**: smaller and rounder (`earFrame` L 0.074, width profile exponent 0.55) and angled further back
+  (`A = (0.52, 0.34, −0.78)`).
+- **Budget**: hero 90 738 · game **30 122** · far 8 638 — still under the 40k rule (smoke passes).
+
 ### Chibi pass 2 — "exaggerate" (2026-10-13)
 Follow-up brief: eyes "way way bigger", hair "still too many fringe and way too thin", "exaggerate the proportion",
 and the jaw line was called out as ugly.
