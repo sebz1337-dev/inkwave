@@ -114,6 +114,13 @@ Index 0 of both is exactly the art-pass look, so every saved profile, bot and ro
   `faceShape 2`/`eyeSize 1`, distinct meshes and distinct looks in the same render).
 - Anchors do **not** move: `HEAD_C`, the head bone and the face helper bones keep their rest positions, so IK, gaze
   (`getHeadPosition`) and portrait framing stay valid — the sculpt only scales radii around the same head centre.
+- **Locker**: a new `HEAD` tab (`LOCKER_TABS`, menus.js) holds FACE SHAPE + EYE SIZE, each tile a live face portrait of
+  your kid with that option; the sticker sheet lists both, and picks save through `_saveStyle` like every other slot
+  (verified end to end: pick Sharp + Bright → `profile.style.faceShape/eyeSize` and `localStorage['inkwave.profile']`).
+  Nothing else in the locker needed changing — tiles, portraits, portrait cache keys, presets and the online sync are
+  all field-agnostic, which is why the slots had to be flat integers (`SLOT_NAMES` strings are the i18n keys).
+- **Budget guard**: `tools/smoke.sh` now fails if the game-tier kid meshes (skin + eyes + cloth + hair via
+  `kidStats('game')`) exceed 40 000 triangles (currently 31 282). Trip-tested with a lowered threshold.
 
 ### Props
 - `getSubDef('bomb')` (character-weapons.js): hand-held splat bomb (`body` → plastic material, `ink` → team ink material),

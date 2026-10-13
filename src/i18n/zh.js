@@ -37,6 +37,9 @@ export const ZH_PHRASES = {
   'the squad': '加入小队', 'in': '加入',
   'No bots on this stage': '此场地没有机器人', 'Room is full': '房间已满', 'Empty spots stay empty': '空位保持空缺',
   'TENTACLE STYLE': '触手发型', 'HEADGEAR': '头部装备', 'BROWS': '眉毛', 'SKIN TONE': '肤色',
+  'FACE SHAPE': '脸型', 'EYE SIZE': '眼睛大小',
+  'Round': '圆润', 'Sharp': '凌厉', 'Wide': '宽阔', 'Slim': '纤细', 'Baby': '幼态',
+  'Standard': '标准', 'Bright': '明亮', 'Narrow': '细长',
   'DONE': '完成',
   'Bow': '弓', 'Brolly': '伞盾', 'Cutlass': '弯刀', 'Mitts': '拳套',
   'CENTRE ZONE': '中央区域', '{team} SIDE': '{team} 方区域', 'HELD BY {team}': '{team} 占据', 'NEUTRAL': '中立',
@@ -280,7 +283,7 @@ export const ZH_PHRASES = {
   'NEW': '新',
 
   // ================================================================ locker
-  'HAIR': '发型', 'FACE': '面容', 'OUTFIT': '装束', 'EYES': '眼睛', 'SKIN': '肤色', 'HAT': '帽子', 'BROWS': '眉毛',
+  'HAIR': '发型', 'HEAD': '头部', 'FACE': '面容', 'OUTFIT': '装束', 'EYES': '眼睛', 'SKIN': '肤色', 'HAT': '帽子', 'BROWS': '眉毛',
   'LOOKS': '款型', 'OPTIONS': '选项',
   'Basic Ringer': '经典老手',
   'Fresh off the ferry, ringer tee and long tentacles.': '刚下渡轮：招牌 T 恤配长触手。',

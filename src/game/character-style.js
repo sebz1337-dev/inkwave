@@ -70,7 +70,7 @@ export const BROW_NAMES = ['Classic', 'Bold', 'Arched', 'Straight'];
 // ---- face sculpt (optional, `faceShape`) and eye size (optional, `eyeSize`): the numbers live in
 // character-face.js (FACE_SHAPES / EYE_SIZES, same order) — these are the name mirrors the locker and labs list.
 export const FACE_SHAPE_NAMES = ['Classic', 'Round', 'Sharp', 'Wide', 'Slim', 'Baby'];
-export const EYE_SIZE_NAMES = ['Standard', 'Bright', 'Sharp'];
+export const EYE_SIZE_NAMES = ['Standard', 'Bright', 'Narrow'];
 
 // ---- named full looks ("characters") the locker can offer one-click -----------------------------------------------
 export const PRESETS = [

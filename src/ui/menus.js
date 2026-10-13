@@ -164,6 +164,7 @@ const STAT_ICONS = { range: GLYPHS.target, damage: GLYPHS.bolt, rate: GLYPHS.clo
 const LOCKER_TABS = [
   { id: 'kids', label: 'SQUIDKIDS', icon: 'users', sections: ['_presets'] },
   { id: 'hair', label: 'HAIR', icon: 'hair', sections: ['hair', 'hat'] },
+  { id: 'head', label: 'HEAD', icon: 'users', sections: ['faceShape', 'eyeSize'] },
   { id: 'face', label: 'FACE', icon: 'eye', sections: ['eyes', 'brows', 'skin'] },
   { id: 'outfit', label: 'OUTFIT', icon: 'shirt', sections: ['outfit'] },
 ];
@@ -1510,6 +1511,8 @@ export class Menus {
     const L = LOOK;
     const n = (x) => (Array.isArray(x) ? x.length : Math.max(0, x | 0));
     return {
+      faceShape: { key: 'faceShape', title: 'FACE SHAPE', count: n(L.FACE_SHAPE_NAMES), names: L.FACE_SHAPE_NAMES, art: 'portrait', kind: 'face', cause: 'hair' },
+      eyeSize: { key: 'eyeSize', title: 'EYE SIZE', count: n(L.EYE_SIZE_NAMES), names: L.EYE_SIZE_NAMES, art: 'portrait', kind: 'face', cause: 'eyes' },
       hair: { key: 'hair', title: 'TENTACLE STYLE', count: n(L.HAIR_STYLES), names: L.HAIR_STYLE_NAMES || L.HAIR_NAMES, art: 'portrait', kind: 'head', cause: 'hair' },
       hat: { key: 'hat', title: 'HEADGEAR', count: n(L.HATS), names: L.HAT_NAMES, art: 'portrait', kind: 'head', cause: 'hair' },
       eyes: { key: 'eyes', title: 'EYES', count: n(L.IRIS), names: L.IRIS_NAMES, art: 'iris', cause: 'eyes' },
@@ -1683,7 +1686,7 @@ export class Menus {
     };
     // the current look as a sticker sheet (one chip per slot)
     const renderSheet = () => {
-      const rows = [['hair', 'HAIR'], ['hat', 'HAT'], ['eyes', 'EYES'], ['brows', 'BROWS'], ['skin', 'SKIN'], ['outfit', 'OUTFIT']].filter(([k]) => slots[k] && slots[k].count > 0);
+      const rows = [['faceShape', 'FACE SHAPE'], ['eyeSize', 'EYE SIZE'], ['hair', 'HAIR'], ['hat', 'HAT'], ['eyes', 'EYES'], ['brows', 'BROWS'], ['skin', 'SKIN'], ['outfit', 'OUTFIT']].filter(([k]) => slots[k] && slots[k].count > 0);
       sheet.innerHTML = '';
       for (const [k, label] of rows) {
         const sec = slots[k], i = style[k] | 0;

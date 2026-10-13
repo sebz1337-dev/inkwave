@@ -49,7 +49,7 @@ export const FACE_SHAPES = [
 export const EYE_SIZES = [
   { name: 'Standard' },
   { name: 'Bright', s: 1.12 },
-  { name: 'Sharp', s: 0.88 },
+  { name: 'Narrow', s: 0.88 },
 ];
 const wrapN = (v, n) => ((Math.round(+v || 0) % n) + n) % n;
 // sculpture modifiers of the current faceShape (all 1 for shape 0) — setFaceShape() writes these
