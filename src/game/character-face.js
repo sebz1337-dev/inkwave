@@ -31,10 +31,10 @@ const sminK = (a, b, k) => { const h = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1); r
 // Head sculpt (analytic: the hair cap, bangs and brows hug it through headSurf in character-geo.js)
 // ------------------------------------------------------------------------------------------------
 export const HEAD_C = new V3(0, 1.214, 0.012);
-const HR = { x: 0.178, y: 0.176, z: 0.165 };
+const HR = { x: 0.186, y: 0.168, z: 0.168 };   // wider than tall: flatter cranium, bigger face plane (art pass 1)
 export const EYE = { az: 0.355, el: 0.14, daz: 0.172, del: 0.222, tilt: 0.1 };
-export const MOUTH = { el: -0.41, halfAz: 0.12 };
-export const BROW = { az0: 0.19, az1: 0.54, el: 0.455 };
+export const MOUTH = { el: -0.41, halfAz: 0.135 };
+export const BROW = { az0: 0.19, az1: 0.54, el: 0.515 };
 export const EAR = { az: 1.5, el: -0.035 };
 // fixed core-skeleton indices (BODY_BONES order in character-geo.js; the rig is append-only so these never move)
 export const FACE_BONES = { head: 4, eyeL: 19, eyeR: 20 };
@@ -42,19 +42,23 @@ export const FACE_BONES = { head: 4, eyeL: 19, eyeR: 20 };
 /** Mask (Inkling eye mask) signed distance in the head's (az, el): > 0 inside. Same shape as the skin shader's pigment. */
 export function visorSD(az, el) {
   const ax = Math.abs(az);
-  const lobe = (1 - Math.hypot((ax - 0.355) / 0.3, (el - 0.15) / 0.29)) * 0.26;
-  const bridge = ax < 0.42 ? 0.1 + 0.1 * sstep(0, 0.36, ax) - Math.abs(el - 0.17) : -1;
-  const s = (ax - 0.42) / 0.9;
-  const wc = 0.16 + 0.2 * Math.pow(clamp(s, 0, 1), 1.35);
-  const wh = 0.205 * Math.pow(clamp(1 - s, 0, 1), 0.8);
-  const wing = s > -0.1 && s <= 1 ? wh - Math.abs(el - wc) : -1;
+  // patch: a wide Inkling lobe over the eye, angled slightly up-and-out, tapering to an outer point
+  const lobe = (1 - Math.hypot((ax - 0.35) / 0.28, (el - 0.18) / 0.30)) * 0.26;
+  // bridge: the two patches never meet over the nose (clear below ax 0.13), and it fades out toward the lobe
+  const bridge = ax > 0.13 && ax < 0.44 ? 0.05 + 0.13 * sstep(0.13, 0.42, ax) - Math.abs(el - 0.19) : -1;
+  const s = (ax - 0.44) / 0.62;                 // shorter outer sweep (a patch, not a streak)
+  const wc = 0.21 - 0.05 * Math.pow(clamp(s, 0, 1), 1.2);
+  const wh = 0.17 * Math.pow(clamp(1 - s, 0, 1), 0.5);
+  const wing = s > -0.05 && s <= 1 ? wh - Math.abs(el - wc) : -1;
   return smaxK(smaxK(lobe, bridge, 0.06), wing, 0.07);
 }
-/** Scalp (hair cap) hairline elevation as a function of azimuth. */
+/** Scalp (hair cap) hairline elevation as a function of azimuth. A shallow scallop at the front reads as pointed
+ *  fringe locks instead of one smooth helmet edge (art pass 1); it fades out toward the temples and nape. */
 export function hairline(az) {
   const a = Math.abs(az) / Math.PI;
   let h = lerp(0.58, 0.3, sstep(0.1, 0.42, a));
   h = lerp(h, -0.8, sstep(0.5, 0.96, a));
+  h += 0.022 * Math.cos(az * 9) * (1 - sstep(0.45, 0.78, a));
   return h;
 }
 
@@ -80,28 +84,29 @@ export function headShape(dx, dy, dz, out) {
   }
   x *= 1 + 0.04 * gauss(el + 0.1, 0.32) * sstep(-0.45, 0.25, dz);   // widest across the cheek line (face half only)
   if (dz < 0) z *= 1 + 0.06 * -dz * (1 - Math.abs(dy));             // fuller back of the skull
-  if (dy > 0) y *= 1 - 0.045 * dy * dy;                              // slightly flattened crown
+  if (dy > 0) y *= 1 - 0.075 * dy * dy;                              // flattened crown (art pass 1)
   if (dy > 0) z *= 1 - 0.07 * sstep(0.3, 0.95, el) * front * front;  // forehead leans back
   let off = 0;
   off += 0.0032 * gauss(el + 0.18, 0.2) * gauss(az, 0.55);          // flatter face plane: the mid-face comes forward
   off += 0.0085 * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
   off += 0.0048 * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
-  off += 0.0019 * Math.exp(-(((aa - 0.8) / 0.2) ** 2) - (((el + 0.03) / 0.12) ** 2));    // cheekbone under the outer eye
+  off += 0.0034 * Math.exp(-(((aa - 0.8) / 0.22) ** 2) - (((el + 0.03) / 0.13) ** 2));   // cheekbone under the outer eye (art pass 1)
   off += 0.0072 * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks round out the silhouette
-  off += 0.0022 * Math.exp(-((az / 0.19) ** 2) - (((el + 0.76) / 0.1) ** 2));            // small soft chin
+  off += 0.0036 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.76) / 0.09) ** 2));           // defined chin (art pass 1)
+  off += 0.0028 * Math.exp(-(((aa - 1.02) / 0.28) ** 2) - (((el + 0.42) / 0.15) ** 2));  // jaw corner: a real jawline instead of a ball (art pass 1)
   off += 0.0024 * Math.exp(-((az / 0.28) ** 2) - (((el - MOUTH.el) / 0.14) ** 2));      // mouth mound (dental arch)
-  off += 0.0064 * Math.exp(-((az / 0.052) ** 2) - (((el + 0.13) / 0.056) ** 2));         // nose: button tip
-  off += 0.0019 * Math.exp(-(((aa - 0.05) / 0.03) ** 2) - (((el + 0.156) / 0.034) ** 2)); // nose wings
+  off += 0.0092 * Math.exp(-((az / 0.048) ** 2) - (((el + 0.128) / 0.048) ** 2));         // nose: button tip, a touch sharper (art pass 1)
+  off += 0.0026 * Math.exp(-(((aa - 0.05) / 0.03) ** 2) - (((el + 0.156) / 0.034) ** 2)); // nose wings
   off -= 0.0012 * Math.exp(-(((aa - 0.027) / 0.015) ** 2) - (((el + 0.177) / 0.011) ** 2)); // nostrils
   off -= 0.0008 * Math.exp(-((az / 0.07) ** 2) - (((el + 0.215) / 0.022) ** 2));         // subnasal tuck
   off += 0.0012 * Math.exp(-((az / 0.1) ** 2) - (((el + 0.06) / 0.07) ** 2));            // nose bridge
   off -= 0.0005 * Math.exp(-((az / 0.034) ** 2) - (((el + 0.29) / 0.045) ** 2));         // philtrum (soft)
   off -= 0.0024 * Math.exp(-((az / 0.55) ** 2) - (((el - 0.14) / 0.2) ** 2));            // mask plane
   off -= 0.0034 * Math.exp(-(((aa - 1.15) / 0.25) ** 2) - (((el - 0.25) / 0.2) ** 2));   // temples
-  off += 0.0024 * Math.exp(-(((aa - 0.33) / 0.2) ** 2) - (((el - 0.475) / 0.07) ** 2));  // brow ridge
+  off += 0.0046 * Math.exp(-(((aa - 0.37) / 0.22) ** 2) - (((el - 0.45) / 0.075) ** 2)); // brow ridge: reads through the mask (art pass 1)
   off += 0.0008 * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
   off -= 0.0022 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.57) / 0.045) ** 2));          // mentolabial fold
-  off -= 0.0005 * sstep(-0.02, 0.05, visorSD(az, el));                                    // mask: a whisper of a recess
+  off -= 0.0012 * sstep(-0.02, 0.05, visorSD(az, el));                                    // mask: a crisp recess at the patch edge (art pass 1)
   let r = Math.hypot(x, y, z);
   const r1 = r + off;
   // under-jaw plane (front half only; the round back of the skull and the nape are left alone)
@@ -162,11 +167,11 @@ export function faceLevel(lod = 'hero', quality = G.settings?.quality || 'high')
 // step: carrier angular step in the face (rad) · low: jaw/neck rows · eye: [lid rings, margin roll] ·
 // mouth: [lip rings, inner-lip roll, cavity rings] · ear: [along, around] · cap: eyeball [rings, segments] · teeth: segments
 const RES = [
-  { step: 0.14, low: 4, eye: [2, 1], mouth: [2, 1, 1], ear: [5, 6], cap: [4, 14], teeth: 0, lash: 0 },
-  { step: 0.075, low: 8, eye: [5, 2], mouth: [3, 2, 2], ear: [9, 10], cap: [8, 24], teeth: 6, lash: 3 },
-  { step: 0.058, low: 10, eye: [6, 2], mouth: [4, 2, 3], ear: [12, 14], cap: [10, 30], teeth: 8, lash: 4 },
-  { step: 0.034, low: 18, eye: [11, 3], mouth: [7, 3, 5], ear: [22, 24], cap: [18, 48], teeth: 16, lash: 6 },
-  { step: 0.027, low: 23, eye: [14, 3], mouth: [9, 3, 6], ear: [28, 30], cap: [22, 60], teeth: 22, lash: 8 },
+  { step: 0.14, low: 4, eye: [2, 1], mouth: [2, 1, 1], ear: [5, 6], cap: [4, 14], teeth: 0 },
+  { step: 0.075, low: 8, eye: [5, 2], mouth: [3, 2, 2], ear: [9, 10], cap: [8, 24], teeth: 6 },
+  { step: 0.058, low: 10, eye: [6, 2], mouth: [4, 2, 3], ear: [12, 14], cap: [10, 30], teeth: 8 },
+  { step: 0.034, low: 18, eye: [11, 3], mouth: [7, 3, 5], ear: [22, 24], cap: [18, 48], teeth: 16 },
+  { step: 0.027, low: 23, eye: [14, 3], mouth: [9, 3, 6], ear: [28, 30], cap: [22, 60], teeth: 22 },
 ];
 
 // ------------------------------------------------------------------------------------------------
@@ -176,8 +181,8 @@ const RES = [
 // l0: aperture centre λ · close: where the lids meet (fraction up from the lower lid) · over: upper-lid overshoot ·
 // lidU/lidL: lid shell radius (eye space, 1 = eyeball) · k: lid/socket blend · dip: socket hollow · apex: eyeball apex
 // depth under the (recessed) skin · yaw: eye axis turned outward · rest: iris rest yaw (converges the gaze) · iris/pupil radii
-export const EYEB = { rx: 0.052, ry: 0.0605, rz: 0.035, xh: 0.5, hu: 0.6, hl: 0.57, l0: 0.0, close: 0.22, over: 0.035,
-  lidU: 1.075, lidL: 1.05, k: 0.07, dip: 0.055, apex: 0.0008, yaw: 0.2, rest: -0.06, iris: 0.37, cornea: 0.045 };
+export const EYEB = { rx: 0.054, ry: 0.0655, rz: 0.036, xh: 0.55, hu: 0.68, hl: 0.63, l0: 0.0, close: 0.22, over: 0.035,
+  lidU: 1.075, lidL: 1.05, k: 0.07, dip: 0.055, apex: 0.0008, yaw: 0.2, rest: -0.06, iris: 0.7, cornea: 0.045 };
 const lamU = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 + EYEB.hu * Math.sqrt(q); };
 const lamL = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 - EYEB.hl * Math.sqrt(q); };
 const lamClose = (x) => lamL(x) + EYEB.close * (lamU(x) - lamL(x));
@@ -621,34 +626,7 @@ function addEyePatch(acc, F, loop, R) {
   const tOuter = t0 + (K * N) * 6;
   const flipped = acc.orient(t0, tOuter, () => F.C);
   if (flipped) acc.flip(tOuter, acc.idx.length);
-  if (R.lash) for (const L of LASHES) addLash(acc, F, L, R.lash);
 }
-// lash tabs in aperture coordinates: centre (e, φ), radius (normalised aperture units)
-export const LASHES = [{ e: 0.91, phi: 0.58, r: 0.155, tip: -1.2 }, { e: 0.93, phi: 0.24, r: 0.115, tip: -0.7 }];
-const lashR = (L, a) => L.r * (1 + 0.9 * Math.pow(Math.max(0, Math.cos(a - L.tip)), 5)); // teardrop, tip down-and-out
-function addLash(acc, F, L, n) {
-  const segs = Math.max(8, n * 2), rings = Math.max(2, Math.round(n / 2));
-  const cx = L.e * Math.cos(L.phi), cy = L.e * Math.sin(L.phi);
-  const dir = new V3(), pos = new V3();
-  const at = (xn, yn, rho) => {
-    const lam = EYEB.l0 + yn * (yn > 0 ? EYEB.hu : EYEB.hl), x = clamp(EYEB.xh * xn, -0.999, 0.999), c = Math.sqrt(1 - x * x);
-    dir.set(x, c * Math.sin(lam), c * Math.cos(lam)); fromEye(F, dir.multiplyScalar(rho), pos);
-    const [tu] = lidTravel(EYEB.xh * clamp(xn, -1, 1));
-    return acc.v(pos, { w: [['head', 1]], lid: [tu, 0], part: 3 });
-  };
-  const c0 = at(cx, cy, 1.066);
-  const ids = [];
-  for (let r = 1; r <= rings; r++) {
-    const f = r / rings, row = [];
-    for (let k = 0; k < segs; k++) { const a = (k / segs) * TAU, rr = lashR(L, a) * f; row.push(at(cx + rr * Math.cos(a), cy + rr * Math.sin(a), 1.066 - 0.016 * f * f)); }
-    ids.push(row);
-  }
-  const t0 = acc.idx.length;
-  for (let k = 0; k < segs; k++) acc.tri(c0, ids[0][k], ids[0][(k + 1) % segs]);
-  for (let r = 0; r < rings - 1; r++) for (let k = 0; k < segs; k++) { const k1 = (k + 1) % segs; acc.quad(ids[r][k], ids[r + 1][k], ids[r + 1][k1], ids[r][k1]); }
-  acc.orient(t0, acc.idx.length, () => F.C);
-}
-
 // ---- mouth: lip rings → inner lip roll → cavity bag; teeth + tongue --------------------------------
 function mouthLip(az, el) {
   // lip relief (m, along the head normal) in mouth coordinates: a ∈ [-1, 1] across, b = el − mouth line (rad)
@@ -857,7 +835,8 @@ function bakeAO(acc, N) {
     if (acc.part[i] === 1 || acc.part[i] === 3 || acc.part[i] === 4) {
       v.subVectors(acc.P[i], HEAD_C); const r = v.length(); const az = Math.atan2(v.x, v.z), el = Math.asin(v.y / r);
       a *= 1 - 0.45 * gauss(Math.abs(az) - 0.027, 0.016) * gauss(el + 0.178, 0.013);   // nostrils
-      a *= 1 - 0.12 * gauss(Math.abs(az) - 0.058, 0.03) * gauss(el + 0.17, 0.02);     // nose-wing crease
+      a *= 1 - 0.22 * gauss(Math.abs(az) - 0.058, 0.03) * gauss(el + 0.17, 0.02);      // nose-wing crease
+      a *= 1 - 0.14 * gauss(az, 0.05) * gauss(el + 0.152, 0.016);                      // shadow under the tip (art pass 1)
     }
     if (acc.part[i] === 3) a *= lerp(1, 0.55, acc.uv[i][0]);                          // tucked lid margin
     if (acc.part[i] === 4 && acc.uv[i][1] > 0) { const dz = MF.C.clone().sub(acc.P[i]).dot(MF.F); a = lerp(a, lerp(0.85, 0.3, sstep(0.003, 0.022, dz)), acc.uv[i][1]); }

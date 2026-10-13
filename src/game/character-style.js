@@ -102,6 +102,9 @@ export function randomStyle(rng = Math.random) {
   };
 }
 
+/** Option names per style slot, in table order — the single source the locker, the labs and tools read counts from. */
+export const SLOT_NAMES = { hair: HAIR_STYLE_NAMES, skin: SKIN_NAMES, outfit: OUTFIT_NAMES, eyes: IRIS_NAMES, hat: HAT_NAMES, brows: BROW_NAMES };
+
 /** Swatch colours for UI chips: { skin, eyes: [a, b], shirt, shorts, ... } of a (resolved) style. */
 export function styleSwatch(st) {
   const s = resolveStyle(st);

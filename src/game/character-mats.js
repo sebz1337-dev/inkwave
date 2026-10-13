@@ -135,15 +135,15 @@ const FACE_GLSL = /* glsl */`
 float iwSmax(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (a - b) / k, 0.0, 1.0); return mix(b, a, h) + k * h * (1.0 - h); }
 float iwVisorSD(float az, float el){
   float ax = abs(az);
-  float lobe = (1.0 - length(vec2((ax - 0.355) / 0.3, (el - 0.15) / 0.29))) * 0.26;
-  float bridge = ax < 0.42 ? 0.1 + 0.1 * smoothstep(0.0, 0.36, ax) - abs(el - 0.17) : -1.0;
-  float s = (ax - 0.42) / 0.9;
-  float wc = 0.16 + 0.2 * pow(clamp(s, 0.0, 1.0), 1.35);
-  float wh = 0.205 * pow(clamp(1.0 - s, 0.0, 1.0), 0.8);
-  float wing = (s > -0.1 && s <= 1.0) ? wh - abs(el - wc) : -1.0;
+  float lobe = (1.0 - length(vec2((ax - 0.35) / 0.28, (el - 0.18) / 0.30))) * 0.26;
+  float bridge = (ax > 0.13 && ax < 0.44) ? 0.05 + 0.13 * smoothstep(0.13, 0.42, ax) - abs(el - 0.19) : -1.0;
+  float s = (ax - 0.44) / 0.62;
+  float wc = 0.21 - 0.05 * pow(clamp(s, 0.0, 1.0), 1.2);
+  float wh = 0.17 * pow(clamp(1.0 - s, 0.0, 1.0), 0.5);
+  float wing = (s > -0.05 && s <= 1.0) ? wh - abs(el - wc) : -1.0;
   return iwSmax(iwSmax(lobe, bridge, 0.06), wing, 0.07);
 }
-float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.58, 0.3, smoothstep(0.1, 0.42, a)); return mix(h, -0.8, smoothstep(0.5, 0.96, a)); }
+float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.58, 0.3, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
 // eye-space constants shared by the skin (lids) and eye (ball, lid shadow) shaders
 function faceUniforms() {
@@ -262,9 +262,9 @@ export function makeSkinMaterial(u, skinHex) {
           diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.95, 0.8, 0.8), vec3(0.98, 0.88, 0.85), smoothstep(0.35, 0.8, 1.0 - uSkinLum)), lip * 0.8);
           // lip line: a thin dark stroke on both lip edges (rest-space, so it rides the smile/frown and parts when open)
           float lx = abs(az) / mAz;
-          float lineW = 0.0038 * mix(1.0, 0.5, smoothstep(0.6, 1.05, lx));
+          float lineW = 0.0044 * mix(1.0, 0.5, smoothstep(0.6, 1.05, lx));
           float lineK = iwStroke(el - mEl + 0.002, lineW) * (1.0 - smoothstep(0.98, 1.12, lx)) * (1.0 - smoothstep(0.04, 0.2, uMouth.z)); // the opening takes over
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.42, 0.26, 0.28), lineK * 0.85);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.38, 0.22, 0.24), lineK * 0.9);
           // ---- mask: pigment in the skin (not a lacquered band): near-black with a faint cool tint, satin, a soft
           //      ~1.5 mm feathered edge (plus AA), a whisper of a recess in the geometry, and a little of the skin's scatter
           float sd = iwVisorSD(az, el);
@@ -1151,18 +1151,18 @@ export function makeHairMaterial(u) {
               // printed suction cups (low detail tiers only): two staggered rows along the underside
               float side = vSinA;
               float row = side > 0.0 ? 0.5 : 0.0;
-              float fa = fract(dist / 0.021 + row) - 0.5;
-              float lat = (abs(side) - 0.42) / 0.24;
-              float size = mix(0.58, 0.34, smoothstep(0.35, 0.96, t));
+              float fa = fract(dist / 0.023 + row) - 0.5;
+              float lat = (abs(side) - 0.44) / 0.26;
+              float size = mix(0.66, 0.4, smoothstep(0.35, 0.96, t));
               float d = length(vec2(fa * 1.2, lat));
               float w = max(fwidth(d), 1e-3);
               float under = smoothstep(-0.15, -0.5, cs);
               iwSuck = (1.0 - smoothstep(size - w, size + w, d)) * under;
               float ring = smoothstep(size * 0.35, size * 0.8, d) * iwSuck;
               float cup = (1.0 - smoothstep(size * 0.25, size * 0.6, d)) * iwSuck;
-              diffuseColor.rgb = mix(diffuseColor.rgb, mix(tc, vec3(1.0), 0.45), iwSuck * 0.8);
-              diffuseColor.rgb *= 1.0 - cup * 0.22;
-              iwH += 0.0009 * ring - 0.0006 * cup;
+              diffuseColor.rgb = mix(diffuseColor.rgb, mix(tc, vec3(1.0), 0.6), iwSuck * 0.9);
+              diffuseColor.rgb *= 1.0 - cup * 0.3;
+              iwH += 0.0012 * ring - 0.0008 * cup;
             }
             // crevices: the baked occlusion also darkens the direct light a little (shadow maps miss them)
             diffuseColor.rgb *= mix(0.66, 1.0, vHair.z);
@@ -1246,23 +1246,9 @@ export function makeEyeMaterial(u) {
           float dU = lU - lam, dL = lam - lL;
           float shade = mix(0.3, 1.0, smoothstep(0.0, 0.2, dU)) * mix(0.55, 1.0, smoothstep(0.0, 0.12, dL));
           shade *= mix(0.7, 1.0, smoothstep(1.0, 0.72, abs(xu)));
-          // soft contact shadow under the two lash tabs (they ride the upper lid)
-          {
-            float lnS = (lam - uEyeAp.w) / (lam >= uEyeAp.w ? uEyeAp.y : uEyeAp.z);
-            for (int k = 0; k < 2; k++) {
-              vec3 L = k == 0 ? vec3(${(0.91 * Math.cos(0.58)).toFixed(4)}, ${(0.91 * Math.sin(0.58)).toFixed(4)}, 0.155) : vec3(${(0.93 * Math.cos(0.24)).toFixed(4)}, ${(0.93 * Math.sin(0.24)).toFixed(4)}, 0.115);
-              float tipA = k == 0 ? -1.2 : -0.7;
-              float xl = L.x * uEyeAp.x, ql = sqrt(max(1.0 - L.x * L.x, 0.0));
-              float lU0l = uEyeAp.w + uEyeAp.y * ql, lCl = uEyeAp.w - uEyeAp.z * ql + uEyeLid.x * (uEyeAp.y + uEyeAp.z) * ql;
-              float yl = L.y - vLidC.x * (lU0l - lCl + uEyeLid.y) / uEyeAp.y;
-              vec2 dv = vec2(xu - L.x, lnS - yl);
-              float dl = length(dv) - L.z * (1.0 + 0.9 * pow(max(0.0, cos(atan(dv.y, dv.x) - tipA)), 5.0));
-              shade *= mix(0.45, 1.0, smoothstep(-0.02, 0.07, dl));
-            }
-          }
-          // sclera: warm white, cooler toward the rim, a hint of pink in the corners
-          vec3 sclera = mix(vec3(0.95, 0.94, 0.92), vec3(0.8, 0.82, 0.88), smoothstep(0.35, 1.1, acos(clamp(dS.z, -1.0, 1.0))));
-          sclera = mix(sclera, vec3(0.95, 0.8, 0.8), smoothstep(0.75, 1.05, abs(xu)) * 0.45);
+          // sclera: warm white, cooler toward the rim, a hint of pink in the corners (kept tight — the iris fills the eye)
+          vec3 sclera = mix(vec3(0.9, 0.89, 0.87), vec3(0.78, 0.8, 0.86), smoothstep(0.35, 1.1, acos(clamp(dS.z, -1.0, 1.0))));
+          sclera = mix(sclera, vec3(0.92, 0.78, 0.78), smoothstep(0.75, 1.05, abs(xu)) * 0.3);
           // iris seen through the cornea: refract the view ray onto a plane just under the limbus
           float zI = cos(uIrisR) - 0.03;
           vec3 rd = refract(-V, dS, 0.75);
@@ -1280,9 +1266,9 @@ export function makeEyeMaterial(u) {
           float coll = 1.0 - smoothstep(0.0, 0.07, abs(r - 0.47 - 0.035 * sin(ang * 9.0 + vSide)));
           ic = mix(ic, ic * 1.3 + 0.04, coll * 0.55 * fl);
           ic = mix(ic, ic * 1.45 + 0.07, smoothstep(0.3, 0.95, r) * smoothstep(0.15, -0.7, iq.y) * 0.85);  // lower glow
-          ic *= mix(1.0, 0.22, smoothstep(0.78, 0.99, r));                                                  // limbal ring
-          float pr = 0.34 * (0.8 + 0.45 * clamp(uPupil, 0.0, 1.0));
-          float pd = length(iq * vec2(1.0, 0.86) - vec2(0.0, 0.03)) - pr;
+          ic *= mix(1.0, 0.16, smoothstep(0.68, 0.96, r));                                                  // limbal ring (art pass 1: thicker, darker)
+          float pr = 0.33 * (0.8 + 0.45 * clamp(uPupil, 0.0, 1.0));
+          float pd = length(iq * vec2(1.0, 0.9) - vec2(0.0, 0.03)) - pr;
           float pw = max(fwidth(pd), 1e-4);
           float pupil = (1.0 - smoothstep(-pw, pw, pd)) * irisM;
           ic = mix(ic, ic * 0.55, (1.0 - smoothstep(0.0, 0.08, pd)) * (1.0 - pupil));                        // pupil rim

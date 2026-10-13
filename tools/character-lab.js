@@ -6,7 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Character, SKIN_TONES, OUTFITS } from '../src/game/character.js';
-import { countTriangles } from '../src/game/character-geo.js';
+import { countTriangles, kidStats } from '../src/game/character-geo.js';
 import { TEAM_PALETTES, PLAYER, WEAPON_ORDER } from '../src/config.js';
 import { G } from '../src/core/ctx.js';
 
@@ -485,6 +485,8 @@ window.lab = {
     refreshUI(); render();
     return this.info();
   },
+  /** Per-tier budget readout: face/head part tris+verts, whole skin / eyes / cloth. */
+  headInfo(lod = null) { return kidStats(lod || hero?.lodTier || 'hero'); },
   /** per-tier, per-part triangle counts of the hero (builds every tier) */
   lodInfo() {
     const out = {};

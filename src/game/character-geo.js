@@ -581,7 +581,7 @@ function handParts(s, sx, lv = 3) {
 function buildSkin(lod = 'hero') {
   const B = new Builder();
   // ---- head, face, mouth cavity, teeth, tongue, ears, neck (character-face.js)
-  addHeadSkin(B, lod);
+  const head = addHeadSkin(B, lod);
   // ---- arms + legs (character-outfit.js) + hands (grip contract, below)
   addBodyLimbs(B, bodyLevel(lod));
   for (const [s, sx] of [['L', 1], ['R', -1]]) {
@@ -591,7 +591,16 @@ function buildSkin(lod = 'hero') {
       B.add(part.geo, { v3: [0, 0, 0], ex: part.ex, weights: part.weights });
     }
   }
-  return B.build('aEx', 'aHead');
+  const g = B.build('aEx', 'aHead');
+  g.userData.head = head;   // { verts, tris } of the face/head/neck part, kept for budgets (kidStats)
+  return g;
+}
+
+/** Per-tier skin budget readout: the head part the face sculpt reports, plus the whole skin/eye/cloth meshes. */
+export function kidStats(lod = 'hero') {
+  const sh = getKidShared(lod);
+  const tris = (g) => (g.index ? g.index.count : g.attributes.position.count) / 3;
+  return { head: { ...(sh.skin.userData.head || {}) }, skin: tris(sh.skin), eyes: tris(sh.eyes), cloth: tris(sh.cloth) };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1289,13 +1298,13 @@ function strandSpec(sd, si, capCenter) {
   const raw = sd.pts.map((cp) => strandPoint(cp, sd.r0, sd.flat, new V3()));
   const outDir = (b) => b.clone().sub(capCenter);
   // curled tip: the end rolls away from the head (toward it for curl < 0) in a tightening spiral
-  const pts = curlTip(raw, sd.curl || 0, outDir);
+  const pts = curlTip(raw, (sd.curl || 0) * 1.3, outDir);
   const profile = (t) => {
     let r = lerp(sd.r0, sd.r1 * 0.92, Math.pow(sstep(0.0, 0.88, t), sd.taper ?? 0.78)); // firm taper (taper > 1 stays full longer)
-    if (!sd.noClub) r *= 1 + 0.2 * Math.exp(-(((t - 0.8) / 0.07) ** 2));               // tentacle club before the tip
-    return r * lerp(1, 0.5, sstep(0.9, 1, t));                                           // tapering, rounded tip
+    if (!sd.noClub) r *= 1 + 0.24 * Math.exp(-(((t - 0.8) / 0.07) ** 2));              // tentacle club before the tip
+    return r * lerp(1, 0.2, sstep(0.84, 1, t));                                          // taper out to a point (art pass 1)
   };
-  const rk = sd.rMain ?? 1;
+  const rk = (sd.rMain ?? 1) * 0.93;   // art pass 1: slightly thinner strands → clearer separation between tentacles
   const radius = (t) => rk * profile(t);
   // lens-shaped ribbon: thin crisp edges, a soft ridge along the top, flatter sucker side underneath.
   // Fin strands (out: 'x') are flattened sideways instead (a mohawk blade) with a symmetric lens section.
@@ -1304,7 +1313,8 @@ function strandSpec(sd, si, capCenter) {
     ? (c, s) => [c * (1 - 0.3 * s * s), s]
     : (c, s) => {
       let cc = c * (1 - 0.34 * s * s);
-      if (c > 0) cc += 0.2 * c * Math.pow(1 - s * s, 2); else cc *= 0.82;
+      if (c > 0) cc += 0.2 * c * Math.pow(1 - s * s, 2);          // soft ridge along the top
+      else cc = c * (0.5 + 0.5 * s * s);                          // cupped underside: a groove that carries the sucker row
       return [cc, s];
     };
   const tw = sd.twist ?? (si % 2 ? 1 : -1) * (0.22 + 0.12 * ((si * 37) % 5) / 4) * (sd.K > 2 ? 0.5 : 1);
@@ -1503,9 +1513,10 @@ function buildStrand(B, sp, si, tExit, rest, meta, hatCtx = null, D = hairDetail
 }
 
 // Brow shapes (style.brows). t = 0 inner end (near the nose) → 1 outer end. el(t) is the stroke's elevation on the head,
-// r(t) its radius. 0 is the original stroke (unchanged); the others are painted-ink variants for the locker.
+// r(t) its radius. 0 is the classic stroke (thinned + raised in the art pass; the variants are painted-ink alternatives
+// for the locker). Style identity of each variant is unchanged.
 export const BROW_KINDS = [
-  { name: 'classic', el: (t) => BROW.el + 0.045 * Math.sin(Math.PI * (t * 0.8 + 0.12)) - 0.014 * t, r: (t) => 0.0092 * (0.5 + 0.5 * Math.sin(Math.PI * (0.22 + 0.72 * t))) * lerp(1.15, 0.7, t), az1: BROW.az1 },
+  { name: 'classic', el: (t) => BROW.el + 0.045 * Math.sin(Math.PI * (t * 0.8 + 0.12)) - 0.014 * t, r: (t) => 0.0078 * (0.5 + 0.5 * Math.sin(Math.PI * (0.22 + 0.72 * t))) * lerp(1.15, 0.7, t), az1: BROW.az1 },
   // bold: thick, low and level with a slight downward slant toward the nose (determined)
   { name: 'bold', el: (t) => BROW.el - 0.004 + 0.022 * Math.sin(Math.PI * (t * 0.7 + 0.2)) + 0.01 * t, r: (t) => 0.0128 * (0.62 + 0.38 * Math.sin(Math.PI * (0.18 + 0.7 * t))) * lerp(1.12, 0.82, t), az1: BROW.az1 + 0.02 },
   // arched: high, thin, elegant arch that tapers to a fine tail

@@ -68,10 +68,34 @@ lists them. Mirror rule for L/R pairs: rotations about local X keep their sign, 
 
 ### Proportion / rest-position notes
 - Existing bone rest positions are unchanged. The face helpers (`eyeL/R`, `browL/R`, `mouth`, `mouthO`) are derived
-  from the re-sculpted head surface and moved ≤ 3 mm; the brows now sit on the mask's top rim (`BROW.el` 0.49 → 0.455)
-  so expressions read under the bangs.
+  from the re-sculpted head surface and moved ≤ 3 mm; the brows sit on the mask's top rim (`BROW.el` 0.49 → 0.455,
+  then 0.515 in the eye/face art pass below) so expressions read under the bangs.
 - `FIST_OFFSET` (character-weapons.js) is now the right fist's grip-hole axis (0.0255, −0.0525, 0): twirls pivot on the
   handle. `inHand` / `handR` / `handL` keep their meaning.
+
+### Eye/face art pass (2026-10-13, "make them read as squid kids")
+Sculpt and shading only — no bone, rig or style-index change:
+- **Lashes removed.** The two geometry lash tabs (`LASHES` / `addLash` in character-face.js) and their contact-shadow
+  term in the eye shader are gone: they rendered as a black blob inside the aperture at close range. `RES[].lash` is
+  dropped with them.
+- **Iris fills the eye.** `EYEB.iris` 0.37 → 0.7, aperture widened (`xh` 0.5 → 0.55, `hu`/`hl` 0.6/0.57 → 0.68/0.63,
+  radii up), sclera desaturated and its corner pink cut, limbal ring thicker/darker, pupil rebalanced. The googly
+  white annulus is gone; only a thin sclera crescent remains at the outer corner.
+- **Mask reshaped.** `visorSD` (character-face.js) and its skin-shader twin `iwVisorSD` (character-mats.js) — the two
+  copies must stay identical — now make two patches that *never* meet over the nose (clear below `ax 0.13`), sit a
+  little higher, and taper to a shorter outer point instead of running past the eye.
+- **Head sculpt.** `HR` 0.178/0.176/0.165 → 0.186/0.168/0.168 (wider, flatter cranium), flatter crown, stronger brow
+  ridge, cheekbone and chin, an added jaw-corner term, a sharper nose tip and wing crease plus an under-tip shadow.
+- **Hairline scallop.** `hairline(az)` (and its `iwHairline` twin) gains a shallow `cos(az*9)` wave at the front, so
+  the cap edge reads as fringe locks rather than one smooth helmet edge.
+- **Tentacle section + tips.** The strand section is cupped underneath (`strandSpec`, character-geo.js) so the printed
+  sucker rows sit in a groove; printed cups are larger and higher-contrast for the game/far tiers; tips taper to a
+  point (`lerp(1, 0.2, …)`) with 1.3× the curl; strands are 7 % thinner.
+- **Measured budget** (`window.lab.headInfo(tier)`, `lodInfo()`): hero 107 487 tris (skin 29 234 — of which head+neck
+  20 634 — cloth 41 560, hair 32 757, eyes 3 936), game **31 282**, far **9 026**. The 40k rule above is the in-match
+  tier; the hero tier is the close-up/locker tier and always ran above it.
+- **Iterate** with `node tools/char-sheet.mjs --slot hair --cam face --lod hero --out /tmp/sheet` (one browser, one
+  PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps).
 
 ### Props
 - `getSubDef('bomb')` (character-weapons.js): hand-held splat bomb (`body` → plastic material, `ink` → team ink material),
