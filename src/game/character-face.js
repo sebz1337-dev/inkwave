@@ -31,22 +31,48 @@ const sminK = (a, b, k) => { const h = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1); r
 // Head sculpt (analytic: the hair cap, bangs and brows hug it through headSurf in character-geo.js)
 // ------------------------------------------------------------------------------------------------
 export const HEAD_C = new V3(0, 1.214, 0.012);
-const HR = { x: 0.178, y: 0.176, z: 0.165 };
-export const EYE = { az: 0.355, el: 0.14, daz: 0.172, del: 0.222, tilt: 0.1 };
-export const MOUTH = { el: -0.41, halfAz: 0.12 };
+
+export const DEFAULT_FACE_PARAMS = {
+  // cranium dimensions
+  hrX: 0.178, hrY: 0.176, hrZ: 0.165,
+  crownFlat: 0.045, foreheadLean: 0.07, skullBack: 0.06,
+  // lower head / jaw taper
+  jawTaperK: 1.3, jawTaperX1: 0.235, jawTaperX2: 0.1, jawTaperX3: 0.19,
+  chinTuckZ: 0.085, jawPlaneD: 0.165, jawPlaneK: 0.038, jawPlaneEnabled: true,
+  // cheeks & mid-face
+  cheekLineSpread: 0.04, cheekVolume: 0.0085, cheekApples: 0.0048, cheekbone: 0.0019, mochiCheeks: 0.0072,
+  chinRound: 0.0022, mouthMound: 0.0024, mentolabial: 0.0022, philtrum: 0.0005, midFaceForward: 0.0032,
+  // nose
+  noseTip: 0.0064, noseTipEl: -0.13, noseWings: 0.0019, nostrils: 0.0012, noseBridge: 0.0012, subnasalTuck: 0.0008,
+  // eyes & brows
+  eyeAz: 0.355, eyeEl: 0.14, eyeTilt: 0.1, eyeYaw: 0.2, browRidge: 0.0024, glabella: 0.0008,
+  eyeRx: 0.052, eyeRy: 0.0605, eyeRz: 0.035, eyeApertureX: 0.5, eyeApertureHu: 0.6, eyeApertureHl: 0.57,
+  irisRadius: 0.37, pupilRadius: 0.42, corneaBulge: 0.045,
+  // mask marking
+  maskLobeW: 0.3, maskLobeH: 0.29, maskBridgeW: 0.42, maskBridgeH: 0.17, maskWingLen: 0.9, maskWingCurv: 0.205, maskRecess: 0.0005,
+  // mouth & ears
+  mouthEl: -0.41, mouthHalfAz: 0.12,
+  earAz: 1.5, earEl: -0.035,
+};
+
+export const FACE_PARAMS = { ...DEFAULT_FACE_PARAMS };
+
+const HR = { x: FACE_PARAMS.hrX, y: FACE_PARAMS.hrY, z: FACE_PARAMS.hrZ };
+export const EYE = { az: FACE_PARAMS.eyeAz, el: FACE_PARAMS.eyeEl, daz: 0.172, del: 0.222, tilt: FACE_PARAMS.eyeTilt };
+export const MOUTH = { el: FACE_PARAMS.mouthEl, halfAz: FACE_PARAMS.mouthHalfAz };
 export const BROW = { az0: 0.19, az1: 0.54, el: 0.455 };
-export const EAR = { az: 1.5, el: -0.035 };
+export const EAR = { az: FACE_PARAMS.earAz, el: FACE_PARAMS.earEl };
 // fixed core-skeleton indices (BODY_BONES order in character-geo.js; the rig is append-only so these never move)
 export const FACE_BONES = { head: 4, eyeL: 19, eyeR: 20 };
 
 /** Mask (Inkling eye mask) signed distance in the head's (az, el): > 0 inside. Same shape as the skin shader's pigment. */
 export function visorSD(az, el) {
   const ax = Math.abs(az);
-  const lobe = (1 - Math.hypot((ax - 0.355) / 0.3, (el - 0.15) / 0.29)) * 0.26;
-  const bridge = ax < 0.42 ? 0.1 + 0.1 * sstep(0, 0.36, ax) - Math.abs(el - 0.17) : -1;
-  const s = (ax - 0.42) / 0.9;
+  const lobe = (1 - Math.hypot((ax - FACE_PARAMS.eyeAz) / FACE_PARAMS.maskLobeW, (el - (FACE_PARAMS.eyeEl + 0.01)) / FACE_PARAMS.maskLobeH)) * 0.26;
+  const bridge = ax < FACE_PARAMS.maskBridgeW ? 0.1 + 0.1 * sstep(0, FACE_PARAMS.maskBridgeW * 0.85, ax) - Math.abs(el - (FACE_PARAMS.eyeEl + 0.03)) : -1;
+  const s = (ax - FACE_PARAMS.maskBridgeW) / FACE_PARAMS.maskWingLen;
   const wc = 0.16 + 0.2 * Math.pow(clamp(s, 0, 1), 1.35);
-  const wh = 0.205 * Math.pow(clamp(1 - s, 0, 1), 0.8);
+  const wh = FACE_PARAMS.maskWingCurv * Math.pow(clamp(1 - s, 0, 1), 0.8);
   const wing = s > -0.1 && s <= 1 ? wh - Math.abs(el - wc) : -1;
   return smaxK(smaxK(lobe, bridge, 0.06), wing, 0.07);
 }
@@ -66,48 +92,50 @@ export function hairline(az) {
  *  the jaw line appears wherever it meets the sides). Then the features: brow ridge, recessed mask, button nose with
  *  wings and nostrils, philtrum, mouth mound, mentolabial fold. */
 const JAW_PLANE = { n: new V3(0, -1, 0.35).normalize(), d: 0, k: 0.016 };
-JAW_PLANE.d = 0.152 / Math.hypot(1, 0.35);                         // plane through (0, −0.152, 0) from HEAD_C, rising 35 % forward
+JAW_PLANE.d = FACE_PARAMS.jawPlaneD / Math.hypot(1, 0.35);                         // plane through (0, −0.152, 0) from HEAD_C, rising 35 % forward
 export function headShape(dx, dy, dz, out) {
   let x = dx * HR.x, y = dy * HR.y, z = dz * HR.z;
   const el = Math.asin(clamp(dy, -1, 1)), az = Math.atan2(dx, dz), aa = Math.abs(az);
   const front = Math.max(0, dz);
   if (dy < 0) {
-    const k = Math.pow(-dy, 1.3);
+    const k = Math.pow(-dy, FACE_PARAMS.jawTaperK);
     // inverted egg: full width through the cheek line, then a quicker taper into a small chin
-    x *= 1 - 0.235 * k - 0.1 * sstep(-0.3, -0.66, el) - 0.19 * sstep(-0.6, -1.05, el);
-    if (dz > 0) z *= 1 - 0.04 * k - 0.085 * sstep(-0.55, -0.95, el) * front;  // chin tucks back under the mouth
+    x *= 1 - FACE_PARAMS.jawTaperX1 * k - FACE_PARAMS.jawTaperX2 * sstep(-0.3, -0.66, el) - FACE_PARAMS.jawTaperX3 * sstep(-0.6, -1.05, el);
+    if (dz > 0) z *= 1 - 0.04 * k - FACE_PARAMS.chinTuckZ * sstep(-0.55, -0.95, el) * front;  // chin tucks back under the mouth
     y *= 1 - 0.03 * k;
   }
-  x *= 1 + 0.04 * gauss(el + 0.1, 0.32) * sstep(-0.45, 0.25, dz);   // widest across the cheek line (face half only)
-  if (dz < 0) z *= 1 + 0.06 * -dz * (1 - Math.abs(dy));             // fuller back of the skull
-  if (dy > 0) y *= 1 - 0.045 * dy * dy;                              // slightly flattened crown
-  if (dy > 0) z *= 1 - 0.07 * sstep(0.3, 0.95, el) * front * front;  // forehead leans back
+  x *= 1 + FACE_PARAMS.cheekLineSpread * gauss(el + 0.1, 0.32) * sstep(-0.45, 0.25, dz);   // widest across the cheek line (face half only)
+  if (dz < 0) z *= 1 + FACE_PARAMS.skullBack * -dz * (1 - Math.abs(dy));             // fuller back of the skull
+  if (dy > 0) y *= 1 - FACE_PARAMS.crownFlat * dy * dy;                              // slightly flattened crown
+  if (dy > 0) z *= 1 - FACE_PARAMS.foreheadLean * sstep(0.3, 0.95, el) * front * front;  // forehead leans back
   let off = 0;
-  off += 0.0032 * gauss(el + 0.18, 0.2) * gauss(az, 0.55);          // flatter face plane: the mid-face comes forward
-  off += 0.0085 * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
-  off += 0.0048 * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
-  off += 0.0019 * Math.exp(-(((aa - 0.8) / 0.2) ** 2) - (((el + 0.03) / 0.12) ** 2));    // cheekbone under the outer eye
-  off += 0.0072 * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks round out the silhouette
-  off += 0.0022 * Math.exp(-((az / 0.19) ** 2) - (((el + 0.76) / 0.1) ** 2));            // small soft chin
-  off += 0.0024 * Math.exp(-((az / 0.28) ** 2) - (((el - MOUTH.el) / 0.14) ** 2));      // mouth mound (dental arch)
-  off += 0.0064 * Math.exp(-((az / 0.052) ** 2) - (((el + 0.13) / 0.056) ** 2));         // nose: button tip
-  off += 0.0019 * Math.exp(-(((aa - 0.05) / 0.03) ** 2) - (((el + 0.156) / 0.034) ** 2)); // nose wings
-  off -= 0.0012 * Math.exp(-(((aa - 0.027) / 0.015) ** 2) - (((el + 0.177) / 0.011) ** 2)); // nostrils
-  off -= 0.0008 * Math.exp(-((az / 0.07) ** 2) - (((el + 0.215) / 0.022) ** 2));         // subnasal tuck
-  off += 0.0012 * Math.exp(-((az / 0.1) ** 2) - (((el + 0.06) / 0.07) ** 2));            // nose bridge
-  off -= 0.0005 * Math.exp(-((az / 0.034) ** 2) - (((el + 0.29) / 0.045) ** 2));         // philtrum (soft)
+  off += FACE_PARAMS.midFaceForward * gauss(el + 0.18, 0.2) * gauss(az, 0.55);          // flatter face plane: the mid-face comes forward
+  off += FACE_PARAMS.cheekVolume * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
+  off += FACE_PARAMS.cheekApples * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
+  off += FACE_PARAMS.cheekbone * Math.exp(-(((aa - 0.8) / 0.2) ** 2) - (((el + 0.03) / 0.12) ** 2));    // cheekbone under the outer eye
+  off += FACE_PARAMS.mochiCheeks * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks round out the silhouette
+  off += FACE_PARAMS.chinRound * Math.exp(-((az / 0.19) ** 2) - (((el + 0.76) / 0.1) ** 2));            // small soft chin
+  off += FACE_PARAMS.mouthMound * Math.exp(-((az / 0.28) ** 2) - (((el - MOUTH.el) / 0.14) ** 2));      // mouth mound (dental arch)
+  off += FACE_PARAMS.noseTip * Math.exp(-((az / 0.052) ** 2) - (((el - FACE_PARAMS.noseTipEl) / 0.056) ** 2));         // nose: button tip
+  off += FACE_PARAMS.noseWings * Math.exp(-(((aa - 0.05) / 0.03) ** 2) - (((el + 0.156) / 0.034) ** 2)); // nose wings
+  off -= FACE_PARAMS.nostrils * Math.exp(-(((aa - 0.027) / 0.015) ** 2) - (((el + 0.177) / 0.011) ** 2)); // nostrils
+  off -= FACE_PARAMS.subnasalTuck * Math.exp(-((az / 0.07) ** 2) - (((el + 0.215) / 0.022) ** 2));         // subnasal tuck
+  off += FACE_PARAMS.noseBridge * Math.exp(-((az / 0.1) ** 2) - (((el + 0.06) / 0.07) ** 2));            // nose bridge
+  off -= FACE_PARAMS.philtrum * Math.exp(-((az / 0.034) ** 2) - (((el + 0.29) / 0.045) ** 2));         // philtrum (soft)
   off -= 0.0024 * Math.exp(-((az / 0.55) ** 2) - (((el - 0.14) / 0.2) ** 2));            // mask plane
   off -= 0.0034 * Math.exp(-(((aa - 1.15) / 0.25) ** 2) - (((el - 0.25) / 0.2) ** 2));   // temples
-  off += 0.0024 * Math.exp(-(((aa - 0.33) / 0.2) ** 2) - (((el - 0.475) / 0.07) ** 2));  // brow ridge
-  off += 0.0008 * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
-  off -= 0.0022 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.57) / 0.045) ** 2));          // mentolabial fold
-  off -= 0.0005 * sstep(-0.02, 0.05, visorSD(az, el));                                    // mask: a whisper of a recess
+  off += FACE_PARAMS.browRidge * Math.exp(-(((aa - 0.33) / 0.2) ** 2) - (((el - 0.475) / 0.07) ** 2));  // brow ridge
+  off += FACE_PARAMS.glabella * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
+  off -= FACE_PARAMS.mentolabial * Math.exp(-((az / 0.17) ** 2) - (((el + 0.57) / 0.045) ** 2));          // mentolabial fold
+  off -= FACE_PARAMS.maskRecess * sstep(-0.02, 0.05, visorSD(az, el));                                    // mask: a whisper of a recess
   let r = Math.hypot(x, y, z);
   const r1 = r + off;
   // under-jaw plane (front half only; the round back of the skull and the nape are left alone)
-  const nd = JAW_PLANE.n.y * dy + JAW_PLANE.n.z * dz;
   let rr = r1;
-  if (nd > 1e-4) { const tp = JAW_PLANE.d / nd; rr = lerp(r1, sminK(r1, tp, JAW_PLANE.k), sstep(-0.55, -0.2, dz)); }
+  if (FACE_PARAMS.jawPlaneEnabled !== false) {
+    const nd = JAW_PLANE.n.y * y + JAW_PLANE.n.z * z;
+    if (nd > 1e-5) { const tp = JAW_PLANE.d * r / nd; rr = lerp(r1, sminK(r1, tp, JAW_PLANE.k), sstep(-0.55, -0.2, dz)); }
+  }
   return out.set(x, y, z).multiplyScalar(rr / r);
 }
 const _d = new V3(), _q0 = new V3(), _q1 = new V3(), _q2 = new V3(), _qa = new V3(), _qn = new V3();
@@ -266,6 +294,57 @@ export const FACE_SHADER = {
   eyeR: new V3(EYEB.rx, EYEB.ry, EYEB.rz), iris: EYEB.iris, rest: EYEB.rest,
   mouthC: MF.C, mouthU: MF.U, mouthF: MF.F, mouthHW: MF.hw, mouthEl: MOUTH.el, mouthAz: MOUTH.halfAz, bones: FACE_BONES,
 };
+
+export function recomputeFaceFrames() {
+  clearFaceCache();
+  const f0 = makeEyeFrame(1), f1 = makeEyeFrame(-1);
+  EYE_FRAMES[0] = f0;
+  EYE_FRAMES[1] = f1;
+  const n = new V3(); const C = headSurfFace(0, MOUTH.el, 0, new V3(), n);
+  const U = new V3(0, 1, 0).addScaledVector(n, -n.y).normalize();
+  const hw = headSurfFace(MOUTH.halfAz, MOUTH.el, 0, new V3()).x;
+  MF.C = C; MF.F = n.clone(); MF.U = U; MF.hw = hw;
+  FACE_SHADER.eyeC = [f0.C, f1.C];
+  FACE_SHADER.eyeM = [f0.M, f1.M];
+  FACE_SHADER.eyeMi = [f0.Mi, f1.Mi];
+  FACE_SHADER.ap.set(EYEB.xh, EYEB.hu, EYEB.hl, EYEB.l0);
+  FACE_SHADER.lid.set(EYEB.close, EYEB.over, EYEB.lidU, EYEB.lidL);
+  FACE_SHADER.eyeR.set(EYEB.rx, EYEB.ry, EYEB.rz);
+  FACE_SHADER.iris = EYEB.iris;
+  FACE_SHADER.rest = EYEB.rest;
+  FACE_SHADER.mouthC = C;
+  FACE_SHADER.mouthU = U;
+  FACE_SHADER.mouthF = n.clone();
+  FACE_SHADER.mouthHW = hw;
+  FACE_SHADER.mouthEl = MOUTH.el;
+  FACE_SHADER.mouthAz = MOUTH.halfAz;
+}
+
+export function clearFaceCache() {
+  _prof = null;
+}
+
+export function applyFaceConfig(p = {}) {
+  Object.assign(FACE_PARAMS, p);
+  clearFaceCache();
+  HR.x = FACE_PARAMS.hrX; HR.y = FACE_PARAMS.hrY; HR.z = FACE_PARAMS.hrZ;
+  EYE.az = FACE_PARAMS.eyeAz; EYE.el = FACE_PARAMS.eyeEl; EYE.tilt = FACE_PARAMS.eyeTilt;
+  EYEB.rx = FACE_PARAMS.eyeRx; EYEB.ry = FACE_PARAMS.eyeRy; EYEB.rz = FACE_PARAMS.eyeRz;
+  EYEB.xh = FACE_PARAMS.eyeApertureX; EYEB.hu = FACE_PARAMS.eyeApertureHu; EYEB.hl = FACE_PARAMS.eyeApertureHl;
+  EYEB.yaw = FACE_PARAMS.eyeYaw; EYEB.iris = FACE_PARAMS.irisRadius; EYEB.cornea = FACE_PARAMS.corneaBulge;
+  MOUTH.el = FACE_PARAMS.mouthEl; MOUTH.halfAz = FACE_PARAMS.mouthHalfAz;
+  if (FACE_PARAMS.browAz0 !== undefined) BROW.az0 = FACE_PARAMS.browAz0;
+  if (FACE_PARAMS.browAz1 !== undefined) BROW.az1 = FACE_PARAMS.browAz1;
+  if (FACE_PARAMS.browEl !== undefined) BROW.el = FACE_PARAMS.browEl;
+  EAR.az = FACE_PARAMS.earAz; EAR.el = FACE_PARAMS.earEl;
+  JAW_PLANE.d = (FACE_PARAMS.jawPlaneD * (HR.y / 0.176)) / Math.hypot(1, 0.35);
+  JAW_PLANE.k = FACE_PARAMS.jawPlaneK;
+  recomputeFaceFrames();
+}
+
+export function resetFaceConfig() {
+  applyFaceConfig(DEFAULT_FACE_PARAMS);
+}
 
 // ------------------------------------------------------------------------------------------------
 // Mesh accumulator (positions + per-vertex face data), turned into one indexed BufferGeometry per part
