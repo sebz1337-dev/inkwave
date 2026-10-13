@@ -470,9 +470,9 @@ export const SPECIAL_ORDER = ['slam', 'storm', 'barrage', 'barrage_sticky', 'bar
 
 // ---- Match ----
 export const MATCH = {
-  durations: [90, 180],     // seconds
-  defaultDuration: 180,
-  maxDuration: 180,          // hard cap (3 min): the final-minute song expects rounds of at most this length
+  durations: [90, 180, 300, 600, 1200],  // seconds: sprint (90 s) / 3 min, then norfan ab788da's 5 / 10 / 20 min
+  defaultDuration: 180,      // 3 min (norfan defaulted to 600; saved 90/180 lengths stay valid)
+  maxDuration: 1200,         // hard cap (20 min) — norfan ac741b6 (was 180, which clamped the new options away)
   finalCountdown: 10,
   teamSize: 4,
   pointsPerM2: 1.0,          // turf points per square metre newly inked

@@ -135,17 +135,29 @@ Reviewed with temp remotes `norfan` / `caomei` (fetched, `--no-tags`):
   base (`main.js`, `menus.js`, `renderer.js`, `match.js`, `player.js`,
   `weapons.js`, `hud.js`, `ui.css`, …) — port per feature, never as a merge.
 
-Ported now: `padSensitivity` default `1.0 → 1.3` (`ac741b6`, `src/config.js`) —
-right-stick camera ×1.3 by default. Verified live: Settings → Controls shows
-"Controller sensitivity 1.30×", `__inkwave.settings.padSensitivity === 1.3`.
+Ported now (owner's calls, 2026-10-13):
 
-Reviewed, deliberately **not** ported (not mechanical):
+* `padSensitivity` default `1.0 → 1.3` (`ac741b6`, `src/config.js`) — right-stick
+  camera ×1.3 by default. Verified live: Settings → Controls shows "Controller
+  sensitivity 1.30×", `__inkwave.settings.padSensitivity === 1.3`.
+* `MATCH.durations → [90, 180, 300, 600, 1200]` + `maxDuration 180 → 1200`
+  (`ab788da`/`ac741b6`), **keeping** `defaultDuration: 180` (3 min). Saved
+  `matchLength: 90/180` stay valid; `main.js:731` no longer clamps the new
+  options away. Verified live: stage select shows MATCH LENGTH
+  90 SEC / **3 MIN** / 5 MIN / 10 MIN / 20 MIN, clicking 20 MIN sets
+  `settings.matchLength = 1200` and START launches `match.duration = 1200`;
+  Settings → Gameplay lists the same 5 options; the one-minute cue still fires
+  (`match.js:208`: `time <= 60 && duration > 60` → track switches to
+  `battle_final`).
 
-| norfan change | why it is not a cheap port |
+Reviewed, deliberately **not** ported:
+
+| norfan change | why |
 |---|---|
-| `PLAYER.hp 100 → 300` (`ab788da`) → `600` (`ac741b6`) | Bundled with their split-screen work; **no weapon-damage retune** in their branch, so it is a TTK balance change (×6 on our tree), not a setting. Waiting on an explicit call. |
-| `MATCH.durations [90,180] → [300,600,1200]`, `defaultDuration` 180 → 600, `maxDuration` 180 → 1200 | Mechanically safe (`match.js:208` fires the one-minute cue on `time <= 60 && duration > 60`, any length works), but it moves the default round from 3 min to 10 min. Waiting on an explicit call. |
+| `PLAYER.hp 100 → 300` (`ab788da`) → `600` (`ac741b6`) | **Kept 100** (owner's call). Bundled with their split-screen work and **never accompanied by a weapon-damage retune**, so it is a ~6× TTK balance change, not a setting. Revisit only together with per-weapon damage tuning. |
+| `defaultDuration 600` (10-min default round) | **Kept 180**. The long options are additive here; norfan's 10-min default is not followed. |
 | `_styleCache` blank-menu fix (`f46b406`) | N/A here: our `_style()` already reads `(this._styleCache || {})` and `_saveStyle` assigns the object itself; norvan indexed `_styleCache[idx]` before init. |
+| `src/net/mock.js:91` still maps `matchLength === 90 ? 90 : 180` | Dev-only stand-in for `G.net`; it is the one place that does not know the new lengths. Harmless offline, fix if the mock is ever used for a long-round demo. |
 
 ## 8. Suggested next work
 
