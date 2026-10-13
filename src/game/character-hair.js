@@ -47,7 +47,7 @@ export function hairDetail(lod = 'hero', quality = hairQuality()) {
   }
   return {
     lod, k, ringsPerM: Math.round(120 * k), radial: even(16 * k), tipSteps: 5,
-    cups: k >= 0.8 ? { radial: Math.max(6, Math.round(7 * k)), prof: 'hi', gap: 1.12 } : { radial: 6, prof: 'lo', gap: 1.3 },
+    cups: k >= 0.8 ? { radial: Math.max(6, Math.round(7 * k)), prof: 'hi', gap: 1.3 } : { radial: 6, prof: 'lo', gap: 1.45 },
     cap: [Math.round(96 * k), Math.round(18 * k)], brow: [18, 10],
     squid: { around: Math.round(72 * k), rows: Math.round(48 * k), arm: [Math.round(28 * k), even(12 * k)], cups: { radial: Math.max(6, Math.round(7 * k)), prof: 'lo', gap: 1.6 } },
   };

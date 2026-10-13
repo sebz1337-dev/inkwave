@@ -146,12 +146,14 @@ float iwVisorSD(float az, float el){
 float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.58, 0.3, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
 // eye-space constants shared by the skin (lids) and eye (ball, lid shadow) shaders
+// Snapshot the current face constants: the sculpt/eye metrics are global module state (setFaceShape), so a material
+// must copy what it needs — a later setFaceShape() for another style must not move this character's eye frames.
 function faceUniforms() {
   const S = FACE_SHADER;
   return {
-    uEyeC: { value: S.eyeC }, uEyeM: { value: S.eyeM }, uEyeMi: { value: S.eyeMi },
-    uEyeAp: { value: S.ap }, uEyeLid: { value: S.lid },
-    uMouthC: { value: S.mouthC }, uMouthU: { value: S.mouthU }, uMouthF: { value: S.mouthF }, uMouthHW: { value: S.mouthHW },
+    uEyeC: { value: S.eyeC.map((v) => v.clone()) }, uEyeM: { value: S.eyeM.map((v) => v.clone()) }, uEyeMi: { value: S.eyeMi.map((v) => v.clone()) },
+    uEyeAp: { value: S.ap.clone() }, uEyeLid: { value: S.lid.clone() },
+    uMouthC: { value: S.mouthC.clone() }, uMouthU: { value: S.mouthU.clone() }, uMouthF: { value: S.mouthF.clone() }, uMouthHW: { value: S.mouthHW },
   };
 }
 // lid closure from the eye bones (character.js blinks/squints by scaling eyeL/eyeR Y): 0 open … 1 shut
@@ -1151,9 +1153,9 @@ export function makeHairMaterial(u) {
               // printed suction cups (low detail tiers only): two staggered rows along the underside
               float side = vSinA;
               float row = side > 0.0 ? 0.5 : 0.0;
-              float fa = fract(dist / 0.023 + row) - 0.5;
-              float lat = (abs(side) - 0.44) / 0.26;
-              float size = mix(0.66, 0.4, smoothstep(0.35, 0.96, t));
+              float fa = fract(dist / 0.028 + row) - 0.5;
+              float lat = (abs(side) - 0.46) / 0.28;
+              float size = mix(0.8, 0.5, smoothstep(0.35, 0.96, t));
               float d = length(vec2(fa * 1.2, lat));
               float w = max(fwidth(d), 1e-3);
               float under = smoothstep(-0.15, -0.5, cs);

@@ -89,13 +89,31 @@ Sculpt and shading only — no bone, rig or style-index change:
 - **Hairline scallop.** `hairline(az)` (and its `iwHairline` twin) gains a shallow `cos(az*9)` wave at the front, so
   the cap edge reads as fringe locks rather than one smooth helmet edge.
 - **Tentacle section + tips.** The strand section is cupped underneath (`strandSpec`, character-geo.js) so the printed
-  sucker rows sit in a groove; printed cups are larger and higher-contrast for the game/far tiers; tips taper to a
-  point (`lerp(1, 0.2, …)`) with 1.3× the curl; strands are 7 % thinner.
+  sucker rows sit in a groove; tips taper to a point (`lerp(1, 0.2, …)`) with 1.3× the curl; strands are 7 % thinner.
+- **Suckers off the reference sheet.** Modelled cup radius 0.20 → 0.30 × the strand radius (spacing up with them, so
+  they sit as separate discs in two staggered rows), printed cups 0.66/0.4 → 0.8/0.5 of the section with a wider band;
+  bang locks wider and flatter (`L.r` 0.8 → 0.95, `L.flat` 1.3 → 1.5) so the fringe reads as tabs, not tubes.
 - **Measured budget** (`window.lab.headInfo(tier)`, `lodInfo()`): hero 107 487 tris (skin 29 234 — of which head+neck
   20 634 — cloth 41 560, hair 32 757, eyes 3 936), game **31 282**, far **9 026**. The 40k rule above is the in-match
   tier; the hero tier is the close-up/locker tier and always ran above it.
 - **Iterate** with `node tools/char-sheet.mjs --slot hair --cam face --lod hero --out /tmp/sheet` (one browser, one
-  PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps).
+  PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
+  `hat`, `brows`, `faceShape`, `eyeSize`).
+
+### Face sculpt + eye size are style slots (2026-10-13)
+`faceShape` (6 options, `FACE_SHAPES`) and `eyeSize` (3, `EYE_SIZES`) live in `character-face.js`, mirrored by name in
+`character-style.js` (`FACE_SHAPE_NAMES`, `EYE_SIZE_NAMES`) and listed in `SLOT_NAMES` for the locker and the labs.
+Index 0 of both is exactly the art-pass look, so every saved profile, bot and roster entry is unchanged.
+- `setFaceShape(faceShape, eyeSize)` mutates `EYEB` / `HR` / `EYE_FRAMES` / `MOUTH_FRAME` / `FACE_SHADER` **in place**
+  (exported identities and the append-only rig are untouched). It runs from the `Character` constructor and from every
+  geometry build, via `useFaceShape(style)` in character-geo.js.
+- Materials **snapshot** the constants they need: `faceUniforms()` clones the vectors/matrices, so a later
+  `setFaceShape()` for another kid cannot move this kid's eye frames. Geometry is cached per face key
+  (`getKidShared(lod, style)`, `getHairStyle`, `getBoneInverses` → `lod|bodyLevel|face.eye`), which is what makes two
+  differently-sculpted kids coexist in one scene (verified: two Characters, `faceShape 0`/`eyeSize 0` vs
+  `faceShape 2`/`eyeSize 1`, distinct meshes and distinct looks in the same render).
+- Anchors do **not** move: `HEAD_C`, the head bone and the face helper bones keep their rest positions, so IK, gaze
+  (`getHeadPosition`) and portrait framing stay valid — the sculpt only scales radii around the same head centre.
 
 ### Props
 - `getSubDef('bomb')` (character-weapons.js): hand-held splat bomb (`body` → plastic material, `ink` → team ink material),

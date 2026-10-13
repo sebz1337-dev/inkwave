@@ -67,6 +67,11 @@ export const HAT_NAMES = ['None', 'Snapback', 'Beanie', 'Bucket Hat'];
 export const BROWS = ['classic', 'bold', 'arched', 'straight'];
 export const BROW_NAMES = ['Classic', 'Bold', 'Arched', 'Straight'];
 
+// ---- face sculpt (optional, `faceShape`) and eye size (optional, `eyeSize`): the numbers live in
+// character-face.js (FACE_SHAPES / EYE_SIZES, same order) — these are the name mirrors the locker and labs list.
+export const FACE_SHAPE_NAMES = ['Classic', 'Round', 'Sharp', 'Wide', 'Slim', 'Baby'];
+export const EYE_SIZE_NAMES = ['Standard', 'Bright', 'Sharp'];
+
 // ---- named full looks ("characters") the locker can offer one-click -----------------------------------------------
 export const PRESETS = [
   { id: 'rookie', name: 'Rookie', blurb: 'Fresh off the ferry, ringer tee and long tentacles.', style: { hair: 0, skin: 0, outfit: 0, eyes: 0, hat: 0, brows: 0 } },
@@ -90,7 +95,9 @@ export function resolveStyle(st = {}, seed = 0) {
   const eyes = wrap(st.eyes ?? (seed >> 9) % IRIS.length, IRIS.length);
   const hat = wrap(st.hat ?? 0, HATS.length);
   const brows = wrap(st.brows ?? 0, BROWS.length);
-  return { ...st, hair, skin, outfit, eyes, hat, brows };
+  const faceShape = wrap(st.faceShape ?? 0, FACE_SHAPE_NAMES.length);
+  const eyeSize = wrap(st.eyeSize ?? 0, EYE_SIZE_NAMES.length);
+  return { ...st, hair, skin, outfit, eyes, hat, brows, faceShape, eyeSize };
 }
 
 /** A complete random look (bots, "shuffle" in the locker). rng() → [0, 1). About a third of rolls wear headgear. */
@@ -99,11 +106,15 @@ export function randomStyle(rng = Math.random) {
   return {
     hair: pick(HAIR_STYLES), skin: pick(SKIN_TONES.length), outfit: pick(OUTFITS.length), eyes: pick(IRIS.length),
     hat: rng() < 0.34 ? 1 + pick(HATS.length - 1) : 0, brows: pick(BROWS.length),
+    faceShape: pick(FACE_SHAPE_NAMES.length), eyeSize: pick(EYE_SIZE_NAMES.length),
   };
 }
 
 /** Option names per style slot, in table order — the single source the locker, the labs and tools read counts from. */
-export const SLOT_NAMES = { hair: HAIR_STYLE_NAMES, skin: SKIN_NAMES, outfit: OUTFIT_NAMES, eyes: IRIS_NAMES, hat: HAT_NAMES, brows: BROW_NAMES };
+export const SLOT_NAMES = {
+  hair: HAIR_STYLE_NAMES, skin: SKIN_NAMES, outfit: OUTFIT_NAMES, eyes: IRIS_NAMES, hat: HAT_NAMES, brows: BROW_NAMES,
+  faceShape: FACE_SHAPE_NAMES, eyeSize: EYE_SIZE_NAMES,
+};
 
 /** Swatch colours for UI chips: { skin, eyes: [a, b], shirt, shorts, ... } of a (resolved) style. */
 export function styleSwatch(st) {

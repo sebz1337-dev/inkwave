@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CS, MC, PART } from './character-mats.js';
 import { addBodyLimbs, addOutfit, bakeBodyAO, bodyLevel, tankGlass, armRadiusAt, armFlatAt, teeSurfacePoint } from './character-outfit.js';
-import { HEAD_C, EYE, MOUTH, BROW, EAR, headShape, hairline, addHeadSkin, addEyeballs, JAW_PIVOT, FACE_BONES } from './character-face.js';
+import { HEAD_C, EYE, MOUTH, BROW, EAR, headShape, hairline, addHeadSkin, addEyeballs, JAW_PIVOT, FACE_BONES, setFaceShape, FACE_SHAPES, EYE_SIZES } from './character-face.js';
 import { TentacleSurface, tentacleTube, suctionCups, curlTip, lockSpines, spineSamples, hairDetail, hairQuality } from './character-hair.js';
 
 const V3 = THREE.Vector3;
@@ -1329,7 +1329,7 @@ function strandSpec(sd, si, capCenter) {
   const locks = (sd.locks || []).map((L, li) => {
     const lp = lockSpines(surf, [L], outDir)[0];
     const ltw = L.tw ?? (li % 2 ? 0.3 : -0.3);
-    const ls = new TentacleSurface(lp, { radius: (t) => (L.r ?? 0.8) * profile(t), flat: (t) => Math.min(0.9, flat(t) * (L.flat ?? 1.3)), twist: (t) => ltw * sstep(0.1, 0.8, t), section, outward, transport: !fin });
+    const ls = new TentacleSurface(lp, { radius: (t) => (L.r ?? 0.95) * profile(t), flat: (t) => Math.min(0.9, flat(t) * (L.flat ?? 1.5)), twist: (t) => ltw * sstep(0.1, 0.8, t), section, outward, transport: !fin });
     // lock param → main spine param (drives the shared bone weights): nearest main sample, kept monotonic
     const map = new Float32Array(65); let j0 = 0; const q = new V3();
     for (let k = 0; k <= 64; k++) {
@@ -1482,7 +1482,7 @@ function buildStrand(B, sp, si, tExit, rest, meta, hatCtx = null, D = hairDetail
     const from = Math.max(sd.cupFrom ?? 0.3, tExit + 0.07);
     const cups = suctionCups(S, {
       rows: [{ th: Math.PI - 0.78, phase: 0 }, { th: Math.PI + 0.78, phase: 0.5 }], from, to: 0.95,
-      size: (t) => Math.max(0.0018, 0.2 * sp.radius(t)), gap: D.cups.gap, radial: D.cups.radial, prof: D.cups.prof,
+      size: (t) => Math.max(0.0022, 0.3 * sp.radius(t)), gap: D.cups.gap, radial: D.cups.radial, prof: D.cups.prof,
       skip: (C, t, R) => (hatCtx && (hatCtx.hidden(C) || hatCtx.nearRim(C))) || (occ && occ.buried(C, R, sp.occId)),
     });
     if (cups.list.length) {
@@ -1696,11 +1696,20 @@ function buildSquid(lod = 'hero') {
 // ------------------------------------------------------------------------------------------------
 const _shared = new Map();
 const _hair = new Map();
-/** Shared kid meshes for a LOD tier ('hero' default · 'game' · 'far'); the body/outfit detail also follows the quality. */
-export function getKidShared(lod = 'hero') {
-  const key = lod + '|' + bodyLevel(lod);
+/** Face/eye option indices of a style, as a cache-key fragment (faceShape + eyeSize). */
+const wrapFace = (v, n) => ((Math.round(+v || 0) % n) + n) % n;
+export function faceKey(st) {
+  if (!st || typeof st !== 'object') return '0.0';
+  return `${wrapFace(st.faceShape, FACE_SHAPES.length)}.${wrapFace(st.eyeSize, EYE_SIZES.length)}`;
+}
+/** Point the face sculpt / eye metrics at a style's options before building anything that reads them. */
+export function useFaceShape(st) { setFaceShape(st && typeof st === 'object' ? st.faceShape : 0, st && typeof st === 'object' ? st.eyeSize : 0); }
+/** Shared kid meshes for a LOD tier ('hero' default · 'game' · 'far') — keyed by the face sculpt too. */
+export function getKidShared(lod = 'hero', st = null) {
+  const key = lod + '|' + bodyLevel(lod) + '|' + faceKey(st);
   let sh = _shared.get(key);
   if (!sh) {
+    useFaceShape(st);
     sh = { skin: buildSkin(lod), cloth: buildCloth(lod), eyes: buildEyes(lod), tank: buildTankParts(lod), squid: buildSquid(lod) };
     bakeBodyAO(sh.skin, sh.cloth, bodyLevel(lod));
     _shared.set(key, sh);
@@ -1719,8 +1728,8 @@ function hairKey(st) {
 const keyStr = (k) => `${k.hair}.${k.hat}.${k.brows}`;
 /** Hair mesh of a style at a LOD tier ('hero' | 'game' | 'far'; resolution also follows the settings quality). */
 export function getHairStyle(st, lod = 'hero') {
-  const k = hairKey(st), ks = `${keyStr(k)}.${lod}.${hairQuality()}`;
-  if (!_hair.has(ks)) _hair.set(ks, buildHair(k.hair, k.hat, k.brows, lod));
+  const k = hairKey(st), fk = faceKey(st), ks = `${keyStr(k)}.${lod}.${hairQuality()}.${fk}`;
+  if (!_hair.has(ks)) { useFaceShape(st); _hair.set(ks, buildHair(k.hair, k.hat, k.brows, lod)); }
   return _hair.get(ks);
 }
 export function getRestPositions(st) {
@@ -1730,12 +1739,12 @@ export function getRestPositions(st) {
 }
 const _inv = new Map();
 export function getBoneInverses(st) {
-  const ks = keyStr(hairKey(st));
+  const ks = keyStr(hairKey(st)) + '.' + faceKey(st);
   if (!_inv.has(ks)) { const rest = getRestPositions(st); _inv.set(ks, BONE_NAMES.map((n) => new THREE.Matrix4().makeTranslation(-rest[n].x, -rest[n].y, -rest[n].z))); }
   return _inv.get(ks);
 }
 /** Cloth (garment) mesh for a style — every outfit currently shares the tee cut (patterns/colours are shader-side). */
-export function getClothGeo(st, lod = 'hero') { return getKidShared(lod).cloth; }
+export function getClothGeo(st, lod = 'hero') { return getKidShared(lod, st).cloth; }
 /** Triangle count of the visible meshes under an object (for budgets / the lab). */
 export function countTriangles(obj) {
   let n = 0;

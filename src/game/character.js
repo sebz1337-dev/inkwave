@@ -19,7 +19,7 @@ import { PLAYER } from '../config.js';
 import { G, on } from '../core/ctx.js';
 import {
   BONE_NAMES, BONE_PARENT, BONE_INDEX, HAIR_MAX, HAIR_SEGS, REST,
-  getKidShared, getHairStyle, getRestPositions, getBoneInverses, getClothGeo,
+  getKidShared, getHairStyle, getRestPositions, getBoneInverses, getClothGeo, useFaceShape,
 } from './character-geo.js';
 import {
   makeCharUniforms, makeSkinMaterial, makeClothMaterial, makeHairMaterial, getDarkMaterial, makeEyeMaterial,
@@ -518,6 +518,7 @@ export class Character {
     const seed = hashStr(this.name);
     this.seed = seed;
     this.style = resolveStyle(st, seed);
+    useFaceShape(this.style);   // sculpt + eye metrics of THIS kid before any geometry or material is built
     this.rng = mulberry(seed);
     this.color = new THREE.Color();
     this.enemyColor = new THREE.Color('#2f5bff');
@@ -773,7 +774,7 @@ export class Character {
   }
 
   _buildTank() {
-    const sh = getKidShared(); const T = sh.tank;
+    const sh = getKidShared('hero', this.style); const T = sh.tank;
     const g = new THREE.Group(); g.position.copy(T.offset); g.rotation.x = T.tilt;
     (this.xb.tank || this.bones.chest).add(g);
     if (this.xb.tank) g.position.sub(this.xb.tank.position);
@@ -784,7 +785,7 @@ export class Character {
   }
 
   _buildSquid() {
-    const sh = getKidShared().squid;
+    const sh = getKidShared('hero', this.style).squid;
     const pivot = new THREE.Group(); this.squidRoot.add(pivot);
     const body = new THREE.Mesh(sh.body, this.mats.squid); body.castShadow = true; body.receiveShadow = true;
     const ghost = new THREE.Mesh(sh.body, this.mats.squidGhost); ghost.renderOrder = 3; ghost.visible = false;
@@ -889,7 +890,7 @@ export class Character {
   // ---------------------------------------------------------------------------------------------
   _tierParts(t) {
     const tn = TIERS[t];
-    const K = getKidShared(tn), H = getHairStyle(this.style, tn);
+    const K = getKidShared(tn, this.style), H = getHairStyle(this.style, tn);
     const parts = [
       { key: 'skin', geo: K.skin, mat: 'skin', shadow: true },
       { key: 'cloth', geo: (getClothGeo && getClothGeo(this.style, tn)) || K.cloth, mat: 'cloth', shadow: true },
@@ -971,10 +972,10 @@ export class Character {
   /** Rigid props follow the tier too (instant swap — small on screen): squid form, tank glass + fill. */
   _tierProps(t) {
     if (!this.squid || !this.tank) return;
-    const K = getKidShared(TIERS[t]), sq = K.squid, T = K.tank;
+    const K = getKidShared(TIERS[t], this.style), sq = K.squid, T = K.tank;
     if (sq && sq.body) {
       let body = sq.body;
-      if (t === T_FAR && body === getKidShared('game').squid?.body) body = farGeometry(body, 1500);
+      if (t === T_FAR && body === getKidShared('game', this.style).squid?.body) body = farGeometry(body, 1500);
       this.squid.body.geometry = body; this.squid.ghost.geometry = body;
       if (sq.dark) this.squid.dark.geometry = sq.dark;
       if (sq.eyes) this.squid.eyes.geometry = sq.eyes;

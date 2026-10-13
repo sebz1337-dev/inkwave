@@ -31,7 +31,29 @@ const sminK = (a, b, k) => { const h = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1); r
 // Head sculpt (analytic: the hair cap, bangs and brows hug it through headSurf in character-geo.js)
 // ------------------------------------------------------------------------------------------------
 export const HEAD_C = new V3(0, 1.214, 0.012);
-const HR = { x: 0.186, y: 0.168, z: 0.168 };   // wider than tall: flatter cranium, bigger face plane (art pass 1)
+// The reference sculpt (faceShape 0). HR is mutated by setFaceShape() and read by headShape(); everything that depends
+// on the sculpt (carrier grid, eye frames, hair cap, AO) is derived from it.
+const HR0 = { x: 0.186, y: 0.168, z: 0.168 };   // wider than tall: flatter cranium, bigger face plane (art pass 1)
+const HR = { ...HR0 };
+/** Face-shape options (style.faceShape). Index 0 is the art-pass default sculpt; the others scale a few terms.
+ *  APPEND-ONLY: 0 is what every saved look and every bot already has. */
+export const FACE_SHAPES = [
+  { name: 'Classic' },
+  { name: 'Round', hr: [1.04, 0.95, 1.05], crown: 1.5, cheek: 1.3, jaw: 0.45, chin: 1.1, brow: 0.7 },
+  { name: 'Sharp', hr: [0.97, 1.02, 1.0], crown: 0.6, cheek: 0.7, jaw: 1.7, chin: 1.5, brow: 1.2 },
+  { name: 'Wide', hr: [1.09, 0.97, 1.0], crown: 0.85, cheek: 1.1, jaw: 1.25, chin: 0.9, brow: 1.1 },
+  { name: 'Slim', hr: [0.94, 1.05, 1.0], crown: 0.9, cheek: 0.75, jaw: 0.85, chin: 0.85, brow: 1.0 },
+  { name: 'Baby', hr: [1.02, 0.94, 1.06], crown: 1.6, cheek: 1.45, jaw: 0.4, chin: 0.75, brow: 0.6 },
+];
+/** Eye sizes (style.eyeSize): scales the aperture and the eyeball ellipsoid. */
+export const EYE_SIZES = [
+  { name: 'Standard' },
+  { name: 'Bright', s: 1.12 },
+  { name: 'Sharp', s: 0.88 },
+];
+const wrapN = (v, n) => ((Math.round(+v || 0) % n) + n) % n;
+// sculpture modifiers of the current faceShape (all 1 for shape 0) — setFaceShape() writes these
+const CUR = { crown: 1, cheek: 1, jaw: 1, chin: 1, brow: 1 };
 export const EYE = { az: 0.355, el: 0.14, daz: 0.172, del: 0.222, tilt: 0.1 };
 export const MOUTH = { el: -0.41, halfAz: 0.135 };
 export const BROW = { az0: 0.19, az1: 0.54, el: 0.515 };
@@ -78,22 +100,22 @@ export function headShape(dx, dy, dz, out) {
   if (dy < 0) {
     const k = Math.pow(-dy, 1.3);
     // inverted egg: full width through the cheek line, then a quicker taper into a small chin
-    x *= 1 - 0.235 * k - 0.1 * sstep(-0.3, -0.66, el) - 0.19 * sstep(-0.6, -1.05, el);
+    x *= 1 - 0.235 * k - 0.1 * CUR.jaw * sstep(-0.3, -0.66, el) - 0.19 * CUR.jaw * sstep(-0.6, -1.05, el);
     if (dz > 0) z *= 1 - 0.04 * k - 0.085 * sstep(-0.55, -0.95, el) * front;  // chin tucks back under the mouth
     y *= 1 - 0.03 * k;
   }
   x *= 1 + 0.04 * gauss(el + 0.1, 0.32) * sstep(-0.45, 0.25, dz);   // widest across the cheek line (face half only)
   if (dz < 0) z *= 1 + 0.06 * -dz * (1 - Math.abs(dy));             // fuller back of the skull
-  if (dy > 0) y *= 1 - 0.075 * dy * dy;                              // flattened crown (art pass 1)
+  if (dy > 0) y *= 1 - 0.075 * CUR.crown * dy * dy;                  // flattened crown (art pass 1)
   if (dy > 0) z *= 1 - 0.07 * sstep(0.3, 0.95, el) * front * front;  // forehead leans back
   let off = 0;
   off += 0.0032 * gauss(el + 0.18, 0.2) * gauss(az, 0.55);          // flatter face plane: the mid-face comes forward
-  off += 0.0085 * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
-  off += 0.0048 * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
-  off += 0.0034 * Math.exp(-(((aa - 0.8) / 0.22) ** 2) - (((el + 0.03) / 0.13) ** 2));   // cheekbone under the outer eye (art pass 1)
-  off += 0.0072 * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks round out the silhouette
-  off += 0.0036 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.76) / 0.09) ** 2));           // defined chin (art pass 1)
-  off += 0.0028 * Math.exp(-(((aa - 1.02) / 0.28) ** 2) - (((el + 0.42) / 0.15) ** 2));  // jaw corner: a real jawline instead of a ball (art pass 1)
+  off += 0.0085 * CUR.cheek * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
+  off += 0.0048 * CUR.cheek * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
+  off += 0.0034 * CUR.cheek * Math.exp(-(((aa - 0.8) / 0.22) ** 2) - (((el + 0.03) / 0.13) ** 2));   // cheekbone under the outer eye (art pass 1)
+  off += 0.0072 * CUR.cheek * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks round out the silhouette
+  off += 0.0036 * CUR.chin * Math.exp(-((az / 0.17) ** 2) - (((el + 0.76) / 0.09) ** 2));           // defined chin (art pass 1)
+  off += 0.0028 * CUR.jaw * Math.exp(-(((aa - 1.02) / 0.28) ** 2) - (((el + 0.42) / 0.15) ** 2));  // jaw corner: a real jawline instead of a ball (art pass 1)
   off += 0.0024 * Math.exp(-((az / 0.28) ** 2) - (((el - MOUTH.el) / 0.14) ** 2));      // mouth mound (dental arch)
   off += 0.0092 * Math.exp(-((az / 0.048) ** 2) - (((el + 0.128) / 0.048) ** 2));         // nose: button tip, a touch sharper (art pass 1)
   off += 0.0026 * Math.exp(-(((aa - 0.05) / 0.03) ** 2) - (((el + 0.156) / 0.034) ** 2)); // nose wings
@@ -103,8 +125,8 @@ export function headShape(dx, dy, dz, out) {
   off -= 0.0005 * Math.exp(-((az / 0.034) ** 2) - (((el + 0.29) / 0.045) ** 2));         // philtrum (soft)
   off -= 0.0024 * Math.exp(-((az / 0.55) ** 2) - (((el - 0.14) / 0.2) ** 2));            // mask plane
   off -= 0.0034 * Math.exp(-(((aa - 1.15) / 0.25) ** 2) - (((el - 0.25) / 0.2) ** 2));   // temples
-  off += 0.0046 * Math.exp(-(((aa - 0.37) / 0.22) ** 2) - (((el - 0.45) / 0.075) ** 2)); // brow ridge: reads through the mask (art pass 1)
-  off += 0.0008 * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
+  off += 0.0046 * CUR.brow * Math.exp(-(((aa - 0.37) / 0.22) ** 2) - (((el - 0.45) / 0.075) ** 2)); // brow ridge: reads through the mask (art pass 1)
+  off += 0.0008 * CUR.brow * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
   off -= 0.0022 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.57) / 0.045) ** 2));          // mentolabial fold
   off -= 0.0012 * sstep(-0.02, 0.05, visorSD(az, el));                                    // mask: a crisp recess at the patch edge (art pass 1)
   let r = Math.hypot(x, y, z);
@@ -271,6 +293,43 @@ export const FACE_SHADER = {
   eyeR: new V3(EYEB.rx, EYEB.ry, EYEB.rz), iris: EYEB.iris, rest: EYEB.rest,
   mouthC: MF.C, mouthU: MF.U, mouthF: MF.F, mouthHW: MF.hw, mouthEl: MOUTH.el, mouthAz: MOUTH.halfAz, bones: FACE_BONES,
 };
+
+/**
+ * Configure the face sculpt + eye metrics for a style (`faceShape`, `eyeSize`). Everything that depends on them —
+ * the carrier grid, the eye frames, the hair cap, the AO — is derived from EYEB / HR / EYE_FRAMES / MOUTH_FRAME /
+ * FACE_SHADER, so this mutates those **in place**: exported identities stay valid, geometry caches key on the shape,
+ * and each character's materials snapshot the constants they need (character-mats.js faceUniforms()).
+ *
+ * Call it before building any face/hair geometry and before creating a Character's materials. Idempotent.
+ */
+export function setFaceShape(shapeIdx = 0, eyeIdx = 0) {
+  const sh = FACE_SHAPES[wrapN(shapeIdx, FACE_SHAPES.length)] || FACE_SHAPES[0];
+  const es = EYE_SIZES[wrapN(eyeIdx, EYE_SIZES.length)] || EYE_SIZES[0];
+  const hr = sh.hr || [1, 1, 1];
+  HR.x = HR0.x * hr[0]; HR.y = HR0.y * hr[1]; HR.z = HR0.z * hr[2];
+  CUR.crown = sh.crown ?? 1; CUR.cheek = sh.cheek ?? 1; CUR.jaw = sh.jaw ?? 1; CUR.chin = sh.chin ?? 1; CUR.brow = sh.brow ?? 1;
+  // eyes: always start from the tuned defaults so switching back and forth is exact
+  const s = es.s ?? 1;
+  EYEB.rx = EYEB0.rx * s; EYEB.ry = EYEB0.ry * s; EYEB.rz = EYEB0.rz * s;
+  EYEB.xh = EYEB0.xh * s; EYEB.hu = EYEB0.hu * s; EYEB.hl = EYEB0.hl * s;
+  EYEB.l0 = EYEB0.l0; EYEB.close = EYEB0.close; EYEB.over = EYEB0.over * s;
+  EYEB.lidU = EYEB0.lidU; EYEB.lidL = EYEB0.lidL; EYEB.k = EYEB0.k; EYEB.dip = EYEB0.dip * s; EYEB.apex = EYEB0.apex;
+  EYEB.yaw = EYEB0.yaw; EYEB.rest = EYEB0.rest; EYEB.iris = EYEB0.iris; EYEB.cornea = EYEB0.cornea;
+  // derived: eye frames, mouth frame, shader constants
+  EYE_FRAMES.length = 0; EYE_FRAMES.push(makeEyeFrame(1), makeEyeFrame(-1));
+  const n = new V3(); MF.C.copy(headSurfFace(0, MOUTH.el, 0, new V3(), n)); MF.F.copy(n); MF.hw = headSurfFace(MOUTH.halfAz, MOUTH.el, 0, new V3()).x;
+  MF.U.set(0, 1, 0).addScaledVector(MF.F, -MF.F.y).normalize();
+  FACE_SHADER.eyeC[0] = EYE_FRAMES[0].C; FACE_SHADER.eyeC[1] = EYE_FRAMES[1].C;
+  FACE_SHADER.eyeM[0] = EYE_FRAMES[0].M; FACE_SHADER.eyeM[1] = EYE_FRAMES[1].M;
+  FACE_SHADER.eyeMi[0] = EYE_FRAMES[0].Mi; FACE_SHADER.eyeMi[1] = EYE_FRAMES[1].Mi;
+  FACE_SHADER.ap.set(EYEB.xh, EYEB.hu, EYEB.hl, EYEB.l0);
+  FACE_SHADER.lid.set(EYEB.close, EYEB.over, EYEB.lidU, EYEB.lidL);
+  FACE_SHADER.eyeR.set(EYEB.rx, EYEB.ry, EYEB.rz);
+  FACE_SHADER.iris = EYEB.iris; FACE_SHADER.rest = EYEB.rest;
+  FACE_SHADER.mouthC.copy(MF.C); FACE_SHADER.mouthU.copy(MF.U); FACE_SHADER.mouthF.copy(MF.F); FACE_SHADER.mouthHW = MF.hw;
+}
+const EYEB0 = { ...EYEB };   // the tuned eye metrics (art pass 1); setFaceShape scales these
+setFaceShape(0, 0);          // module init: shape 0 / standard eyes = the reference look
 
 // ------------------------------------------------------------------------------------------------
 // Mesh accumulator (positions + per-vertex face data), turned into one indexed BufferGeometry per part
