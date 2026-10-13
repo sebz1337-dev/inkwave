@@ -33,7 +33,7 @@ const sminK = (a, b, k) => { const h = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1); r
 export const HEAD_C = new V3(0, 1.214, 0.012);
 // The reference sculpt (faceShape 0). HR is mutated by setFaceShape() and read by headShape(); everything that depends
 // on the sculpt (carrier grid, eye frames, hair cap, AO) is derived from it.
-const HR0 = { x: 0.200, y: 0.184, z: 0.180 };   // chibi pass 2: bigger head
+const HR0 = { x: 0.190, y: 0.188, z: 0.180 };   // chibi pass 3: rounder, less wide (the cone fix)
 const HR = { ...HR0 };
 /** Face-shape options (style.faceShape). Index 0 is the art-pass default sculpt; the others scale a few terms.
  *  APPEND-ONLY: 0 is what every saved look and every bot already has. */
@@ -65,7 +65,7 @@ export const FACE_BONES = { head: 4, eyeL: 19, eyeR: 20 };
  *  fringe locks instead of one smooth helmet edge (art pass 1); it fades out toward the temples and nape. */
 export function hairline(az) {
   const a = Math.abs(az) / Math.PI;
-  let h = lerp(0.62, 0.32, sstep(0.1, 0.42, a));
+  let h = lerp(0.52, 0.30, sstep(0.1, 0.42, a));
   h = lerp(h, -0.8, sstep(0.5, 0.96, a));
   h += 0.022 * Math.cos(az * 9) * (1 - sstep(0.45, 0.78, a));
   return h;
@@ -85,22 +85,22 @@ export function headShape(dx, dy, dz, out) {
   if (dy < 0) {
     const k = Math.pow(-dy, 1.3);
     // inverted egg: full width through the cheek line, then a quicker taper into a small chin
-    x *= 1 - 0.34 * k - 0.16 * CUR.jaw * sstep(-0.3, -0.66, el) - 0.32 * CUR.jaw * sstep(-0.6, -1.05, el);
+    x *= 1 - 0.16 * k - 0.08 * CUR.jaw * sstep(-0.3, -0.66, el) - 0.14 * CUR.jaw * sstep(-0.6, -1.05, el);
     if (dz > 0) z *= 1 - 0.04 * k - 0.085 * sstep(-0.55, -0.95, el) * front;  // chin tucks back under the mouth
     y *= 1 - 0.03 * k;
   }
   x *= 1 + 0.04 * gauss(el + 0.1, 0.32) * sstep(-0.45, 0.25, dz);   // widest across the cheek line (face half only)
   if (dz < 0) z *= 1 + 0.06 * -dz * (1 - Math.abs(dy));             // fuller back of the skull
-  if (dy > 0) y *= 1 - 0.13 * CUR.crown * dy * dy;                   // flattened crown (chibi pass 2: less balloon)
+  if (dy > 0) y *= 1 - 0.09 * CUR.crown * dy * dy;                   // rounded but not domed crown (pass 3)
   if (dy > 0) z *= 1 - 0.07 * sstep(0.3, 0.95, el) * front * front;  // forehead leans back
   let off = 0;
   off += 0.0032 * gauss(el + 0.18, 0.2) * gauss(az, 0.55);          // flatter face plane: the mid-face comes forward
-  off += 0.0050 * CUR.cheek * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
-  off += 0.0032 * CUR.cheek * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
+  off += 0.0075 * CUR.cheek * Math.exp(-(((aa - 0.6) / 0.36) ** 2) - (((el + 0.3) / 0.22) ** 2));    // cheek volume
+  off += 0.0045 * CUR.cheek * Math.exp(-(((aa - 0.42) / 0.17) ** 2) - (((el + 0.2) / 0.12) ** 2));   // cheek apples
   off += 0.0030 * CUR.cheek * Math.exp(-(((aa - 0.8) / 0.22) ** 2) - (((el + 0.03) / 0.13) ** 2));   // cheekbone under the outer eye
-  off += 0.0032 * CUR.cheek * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks (chibi pass 2: no pufferfish)
+  off += 0.0050 * CUR.cheek * Math.exp(-(((aa - 1.0) / 0.34) ** 2) - (((el + 0.27) / 0.2) ** 2));    // mochi cheeks (chibi pass 3: rounder)
   off += 0.0044 * CUR.chin * Math.exp(-((az / 0.16) ** 2) - (((el + 0.78) / 0.085) ** 2));          // small round chin, pushed forward
-  off += 0.0036 * CUR.jaw * Math.exp(-(((aa - 1.02) / 0.26) ** 2) - (((el + 0.42) / 0.13) ** 2));   // jaw corner: a real jawline
+  off += 0.0045 * CUR.jaw * Math.exp(-(((aa - 1.0) / 0.26) ** 2) - (((el + 0.38) / 0.14) ** 2));    // jaw corner
   off += 0.0024 * Math.exp(-((az / 0.28) ** 2) - (((el - MOUTH.el) / 0.14) ** 2));      // mouth mound (dental arch)
   off += 0.0125 * Math.exp(-((az / 0.055) ** 2) - (((el + 0.125) / 0.05) ** 2));          // nose: button tip
   off += 0.0034 * Math.exp(-(((aa - 0.055) / 0.032) ** 2) - (((el + 0.152) / 0.034) ** 2)); // nose wings

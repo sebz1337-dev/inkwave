@@ -133,20 +133,17 @@ ${BUMP}
 // ================================================================================================
 const FACE_GLSL = /* glsl */`
 float iwSmax(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (a - b) / k, 0.0, 1.0); return mix(b, a, h) + k * h * (1.0 - h); }
-// Inkling eye mask: a bold outline in EYE-APERTURE space (ap = xh, hu, hl, l0), so it hugs the eye opening and follows
-// every eye shape/size automatically. Thick over the upper lid, thin under it, with a point sweeping out and up from
-// the outer corner. s = unit direction in eye space (from the eyeball centre). > 0 inside the painted band.
-float iwMaskSD(vec3 s, vec4 ap) {
-  float lam = atan(s.y, s.z);
-  float xn = s.x / ap.x;
-  float ln = (lam - ap.w) / (lam >= ap.w ? ap.y : ap.z);
-  float e = sqrt(xn * xn + ln * ln);
-  float phi = atan(ln, xn);
-  float up = clamp(sin(phi), -1.0, 1.0);
-  float w = 0.16 + 0.34 * smoothstep(-0.9, 0.7, up);     // bold manga liner: heavy over the lid, thinner under it
-  return min(e - 0.9, (1.0 + w) - e);
+// Inkling eye mask: a bold ring around each eye's socket in (az, el) space, with axes scaled by the aperture
+// (uEyeAp = xh, hu, hl, l0) so it follows eyeSize. Thick over the upper lid, thinner under it. > 0 inside the band.
+float iwMaskSD(float az, float el, vec4 ap) {
+  float sx = ap.x / 0.74, sy = ap.y / 0.90;                 // calibrated to the default aperture
+  vec2 q = vec2((abs(az) - 0.36) / (0.36 * sx), (el - 0.06) / (0.40 * sy));
+  float rr = length(q);
+  float up = clamp(q.y, -1.0, 1.0);
+  float wid = 0.30 + 0.30 * smoothstep(-0.8, 0.6, up);      // band thickness, heavier over the lid
+  return min(rr - (1.0 - wid), 1.0 - rr);
 }
-float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.62, 0.32, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
+float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.52, 0.30, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
 // eye-space constants shared by the skin (lids) and eye (ball, lid shadow) shaders
 // Snapshot the current face constants: the sculpt/eye metrics are global module state (setFaceShape), so a material
@@ -174,7 +171,7 @@ vec2 iwLidClose(int si, vec4 lid){
 
 export function makeSkinMaterial(u, skinHex) {
   const m = new THREE.MeshPhysicalMaterial({
-    color: skinHex, roughness: 0.6, metalness: 0, vertexColors: true, specularIntensity: 0.32,
+    color: skinHex, roughness: 0.68, metalness: 0, vertexColors: true, specularIntensity: 0.24,
     sheen: 1, sheenRoughness: 0.85, sheenColor: new THREE.Color('#ffd2c0'),
     clearcoat: 0.01, clearcoatRoughness: 0.5,   // > 0 keeps USE_CLEARCOAT (wet line, nails, teeth set it per fragment)
   });
@@ -247,9 +244,9 @@ export function makeSkinMaterial(u, skinHex) {
           {
             float jawEl = -0.86 + 0.45 * smoothstep(0.0, 1.15, abs(az));
             float jl = (el - jawEl) / 0.11;
-            float jawK = (1.0 - smoothstep(0.7, 1.2, abs(jl))) * smoothstep(0.1, 0.55, abs(az));
-            diffuseColor.rgb *= 1.0 - 0.16 * jawK;
-            iwAO *= 1.0 - 0.1 * jawK;
+            float jawK = (1.0 - smoothstep(0.55, 1.3, abs(jl))) * smoothstep(0.1, 0.55, abs(az));
+            diffuseColor.rgb *= 1.0 - 0.10 * jawK;
+            iwAO *= 1.0 - 0.07 * jawK;
           }
           // ---- blush: soft warm gradient over the cheek apples (+ uMouth2.w flush), stronger on fair skin
           float bl = exp(-pow((abs(az) - 0.6) / 0.2, 2.0) - pow((el + 0.3) / 0.13, 2.0));
@@ -279,23 +276,13 @@ export function makeSkinMaterial(u, skinHex) {
           float lineW = 0.0044 * mix(1.0, 0.5, smoothstep(0.6, 1.05, lx));
           float lineK = iwStroke(el - mEl + 0.002, lineW) * (1.0 - smoothstep(0.98, 1.12, lx)) * (1.0 - smoothstep(0.04, 0.2, uMouth.z)); // the opening takes over
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.38, 0.22, 0.24), lineK * 0.9);
-          // ---- mask: a bold outline hugging each eye opening (eye-aperture space → follows eye shape and size),
-          //      near-black with a faint cool tint, satin, feathered ~1.5 mm (plus AA), damped by the skin's scatter
-          float sd = -1.0;
-          for (int i = 0; i < 2; i++) {
-            vec3 es = uEyeMi[i] * (vBindPos - uEyeC[i]);
-            if (es.z < 0.02) continue;                       // behind the socket: no pigment on the back of the lid
-            sd = max(sd, iwMaskSD(normalize(es), uEyeAp));
-          }
-          // gate: keep the rim inside the eye's own patch (head space) so it cannot wander onto the cheeks or the
-          // nose bridge — the aperture-space coordinate alone reaches a long way from the eyeball's centre
-          float gx = (abs(az) - 0.36) / 0.30, gy = (el - 0.06) / 0.34;
-          float gate = 1.0 - smoothstep(0.9, 1.2, sqrt(gx * gx + gy * gy));
+          // ---- mask: a bold ring around each eye's socket, axes scaled by the aperture (follows eyeSize), plus the
+          //      bridge bar joining the two across the nose; near-black with a faint cool tint, satin, feathered
+          float sd = iwMaskSD(az, el, uEyeAp);
           float w = clamp(fwidth(sd), 1e-4, 0.04);
-          float rimK = smoothstep(-0.008 - w, 0.008 + w, sd) * gate;
-          // bridge: the bar joining both rings across the nose bridge — the reference mask is ONE connected shape
-          float bAz = (abs(az) - 0.07) / 0.15, bEl = (el - 0.03) / 0.05;
-          float bridge = 1.0 - smoothstep(0.72, 1.05, length(vec2(bAz, bEl)));
+          float rimK = smoothstep(-0.055 - w, 0.055 + w, sd);   // soft feathered edge, like the reference's paint
+          float bAz = (abs(az) - 0.07) / 0.15, bEl = (el - 0.06) / 0.07;
+          float bridge = 1.0 - smoothstep(0.62, 1.05, length(vec2(bAz, bEl)));
           iwVisor = max(rimK, bridge);
           vec3 vc = mix(vec3(0.012, 0.0135, 0.02), vec3(0.018, 0.021, 0.032), smoothstep(-0.1, 0.5, el));
           diffuseColor.rgb = mix(diffuseColor.rgb, vc, iwVisor);
@@ -1069,7 +1056,7 @@ void iwRE_Direct( const in IncidentLight directLight, const in vec3 geometryPosi
     vec3 Lb = normalize( L + N * 0.45 );
     float back = pow( clamp( dot( V, -Lb ), 0.0, 1.0 ), 3.0 );             // looking through the jelly toward the light
     vec3 tr = pow( max( iwGumTrans, vec3( 1e-4 ) ), vec3( mix( 2.1, 0.85, iwGumThin ) ) );   // Beer–Lambert: longer path → deeper
-    vec3 bleed = tr * back * ( 0.12 + 2.6 * iwGumThin * iwGumThin + 0.35 * iwGumThin ) + pow( max( iwGumTrans, vec3( 1e-4 ) ), vec3( 1.8 ) ) * soak * 0.4;
+    vec3 bleed = tr * back * ( 0.12 + 3.8 * iwGumThin * iwGumThin + 0.5 * iwGumThin ) + pow( max( iwGumTrans, vec3( 1e-4 ) ), vec3( 1.8 ) ) * soak * 0.55;
     reflectedLight.directDiffuse += iwGumOn * directLight.color * bleed * RECIPROCAL_PI;
   }
 }
@@ -1087,7 +1074,7 @@ function injectGummy(shader) {
 }
 
 export function makeHairMaterial(u) {
-  const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color(1, 1, 1), specularIntensity: 1 });
+  const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.46, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.28, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color(1, 1, 1), specularIntensity: 0.7 });
   m.onBeforeCompile = (shader) => {
     for (const k of ['uHurt', 'uHurtSeed', 'uFlash', 'uTeam', 'uGlow', 'uShirt', 'uShorts', 'uStrap']) shader.uniforms[k] = u[k];
     inject(shader, {
