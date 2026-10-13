@@ -109,6 +109,20 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Flicker, sharp mask, spin fallback (2026-10-13)
+- **"Everything flickers"** was the LOD cross-fade, not noise: two frozen renders in the lab are pixel-identical
+  (RMSE 0), but in a match the tier of 8 moving kids changes ~5 times in 2 s, and every change ran a 0.3 s
+  **screen-door dither** — several at once across the plaza reads as a shimmer. Fixes: `HYST` 0.12 → **0.30**,
+  `FADE_S` 0.3 → **0.15**, the dither cell is 4 px instead of 1 px, the screen-size estimate is low-passed
+  (`L.pxS`, ~4 Hz) so jump/land squash cannot flap the tier, kids below the far band switch instantly, and **only the
+  local kid cross-fades at all** (`!this.isLocal || px < Q.far * 3` → instant). Measured after: **0** frames with any
+  character mid-fade in 2.4 s of match (was several per second).
+- **Mask sharpness**: the previous "soft painted" feather (`smoothstep(-0.16, 0.02, sd)`) was too wide and read as
+  blur — it is now a crisp edge (`smoothstep(-0.02, 0.008, sd)`) with a hairline of AA, and the bridge edge is crisp
+  too.
+- **Spin**: the pedestal also turns with the **wheel**, and `?dbgspin=1` prints the reason a drag was ignored
+  (mode / interactive control) to the console, so a failing environment can be read off instead of guessed.
+
 ### Face seam, drag-to-spin, gradient gloss, deeper AO (2026-10-13)
 - **The real "split in half"** was the carrier's sampling switch: rows above `nLow` sample the analytic head surface
   (`headSurfFace`, with its analytic vertex normal) and rows below come from the jaw/neck profile rays with *computed*

@@ -1019,7 +1019,11 @@ export class Character {
     }
     const Q = LOD_QUALITY[G.settings?.quality] || LOD_QUALITY.high;
     let want;
-    const px = L.px = this._screenPx();
+    // Smooth the screen-size estimate: jump/land squash and camera jitter made it flap, which flipped the tier
+    // (each flip is a dither cross-fade — that is what read as flicker across the whole match).
+    const rawPx = this._screenPx();
+    L.pxS = L.pxS === undefined ? rawPx : lerp(L.pxS, rawPx, 1 - Math.exp(-4 * Math.max(dt, 0)));
+    const px = L.px = L.pxS;
     if (L.force >= 0) want = L.force;
     else if (!this.inWorld) want = Q.menu;
     else if (px <= 0) want = L.tier;
@@ -1027,6 +1031,11 @@ export class Character {
     if (want === L.tier) return;
     // not drawn yet, hidden, or out of a match: switch at once (nothing to pop); on screen: cross-fade
     if (!this._rendered || !this.visible || !this.inWorld || dt <= 0 || L.force >= 0) { this._setTier(want); return; }
+    // a tiny kid (well inside the far band) has nothing to pop: skip the dither, it would only shimmer
+    if (px < Q.far * 1.8) { this._setTier(want); return; }
+    // Only the kid you actually look at cross-fades: a dithering bot across the plaza contributes nothing but
+    // sparkle, and with 8 kids moving that sparkle is what reads as "everything flickers".
+    if (!this.isLocal || px < Q.far * 3) { this._setTier(want); return; }
     this._startFade(want);
   }
 

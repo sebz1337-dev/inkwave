@@ -277,9 +277,9 @@ export function makeSkinMaterial(u, skinHex) {
           // ---- mask: a bold ring around each eye's socket, axes scaled by the aperture (follows eyeSize), plus the
           //      bridge bar joining the two across the nose; near-black with a faint cool tint, satin, feathered
           float sd = iwMaskSD(az, el, uEyeAp);
-          float rimK = smoothstep(-0.16, 0.02, sd);             // soft painted patch, feathered like the reference
+          float rimK = smoothstep(-0.02, 0.008, sd);            // crisp painted edge (AA-thin feather)
           float bAz = (abs(az) - 0.07) / 0.16, bEl = (el - 0.06) / 0.085;
-          float bridge = 1.0 - smoothstep(0.55, 1.0, length(vec2(bAz, bEl)));
+          float bridge = 1.0 - smoothstep(0.94, 1.0, length(vec2(bAz, bEl)));
           iwVisor = max(rimK, bridge);
           vec3 vc = mix(vec3(0.012, 0.0135, 0.02), vec3(0.018, 0.021, 0.032), smoothstep(-0.1, 0.5, el));
           diffuseColor.rgb = mix(diffuseColor.rgb, vc, iwVisor * 0.94);

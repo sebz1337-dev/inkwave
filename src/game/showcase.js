@@ -1096,6 +1096,28 @@ export class Showcase {
     };
     addEventListener(upEv, up);
     if (hasPE) addEventListener('pointercancel', up);
+    // Wheel spin: a drag can be blocked by an OS/browser pointer state we cannot see, so the pedestal also turns
+    // with the wheel (and with the pad's right stick, handled in _updateLoadout).
+    el.addEventListener('wheel', (e) => {
+      if (!PEDESTAL.has(this.mode)) return;
+      const t = e.target;
+      if (t && t.closest && t.closest(IGNORE)) return;
+      this.spin += e.deltaY * 0.004;
+      this.spinVel = lerp(this.spinVel, e.deltaY * 0.02, 0.5);
+      this.sinceDrag = 0;
+      e.preventDefault();
+    }, { passive: false });
+    // Diagnostics: with ?dbgspin=1 the reason a drag was ignored is printed, so a failing environment can be read
+    // off the console instead of guessed at.
+    if (new URLSearchParams(location.search).get('dbgspin') === '1') {
+      const log = (why, e) => console.info('[spin]', why, e && e.type, e && e.clientX, this.mode);
+      el.addEventListener('pointerdown', (e) => {
+        if (!PEDESTAL.has(this.mode)) return log('mode', e);
+        const t = e.target;
+        if (t && t.closest && t.closest(IGNORE)) return log('control', e);
+      }, true);
+      addEventListener('pointermove', (e) => { if (this.drag) log('dragging', e); }, { passive: true });
+    }
   }
 
   // ---------------------------------------------------------------------------------------------- lifecycle

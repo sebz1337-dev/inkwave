@@ -9,7 +9,7 @@ import * as THREE from 'three';
 export const TIERS = ['hero', 'game', 'far'];
 export const T_HERO = 0, T_GAME = 1, T_FAR = 2;
 export const KID_H = 1.32;          // head-top height of the kid (m) for the screen-size estimate
-export const FADE_S = 0.3;          // cross-fade duration (s)
+export const FADE_S = 0.15;         // cross-fade duration (s) — short: tier changes are now rare (see HYST)
 
 // Screen height (CSS px) of the kid: above `hero` → hero tier in a match (`heroLocal` for the local player — the kid
 // you look at all match), below `far` → far tier; `menu` = tier out of a match (showcase pedestal, locker, lobby line-up).
@@ -21,7 +21,7 @@ export const LOD_QUALITY = {
   high: { hero: 430, heroLocal: 150, far: 78, menu: T_HERO },
   ultra: { hero: 300, heroLocal: 110, far: 54, menu: T_HERO },
 };
-export const HYST = 0.12;
+export const HYST = 0.30;
 /** Tier for a screen height `px` given the current tier `cur` (hysteresis), quality row `Q` and hero threshold `H`. */
 export function pickTier(px, cur, Q, H = Q.hero) {
   const up = 1 + HYST, dn = 1 - HYST;
@@ -39,7 +39,7 @@ export function pickTier(px, cur, Q, H = Q.hero) {
 // uLodFade = (f, side): f ∈ (0,1] fade progress; side +1 = outgoing (keeps IGN ≥ f), −1 = incoming (keeps IGN < f).
 // f = 0 disables the test. Interleaved-gradient noise: fine-grained and even at every f.
 const DITHER_PARS = 'uniform vec2 uLodFade;\nfloat iwLodIGN(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }\n';
-const DITHER_TEST = '\n  if (uLodFade.x > 0.0) { float iwLodN = iwLodIGN(floor(gl_FragCoord.xy)); if ((iwLodN < uLodFade.x) == (uLodFade.y > 0.0)) discard; }\n';
+const DITHER_TEST = '\n  if (uLodFade.x > 0.0) { float iwLodN = iwLodIGN(floor(gl_FragCoord.xy * 0.25)); if ((iwLodN < uLodFade.x) == (uLodFade.y > 0.0)) discard; }\n';
 const MAIN_RE = /void\s+main\s*\(\s*\)\s*\{/;
 
 /** A clone of `base` whose fragment shader dithers against `fadeU` ({ value: Vector2 }). Same program for every kid. */
