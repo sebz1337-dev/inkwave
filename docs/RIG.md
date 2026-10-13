@@ -109,6 +109,28 @@ Sculpt and shading only — no bone, rig or style-index change:
   PNG per option; `SLOT_NAMES` in character-style.js is the option table it sweeps — `hair`, `skin`, `outfit`, `eyes`,
   `hat`, `brows`, `faceShape`, `eyeSize`).
 
+### Chibi pass 2 — "exaggerate" (2026-10-13)
+Follow-up brief: eyes "way way bigger", hair "still too many fringe and way too thin", "exaggerate the proportion",
+and the jaw line was called out as ugly.
+- **Eyes**: `EYEB` 0.068/0.082/0.045 with an opening of `xh 0.64 / hu 0.78 / hl 0.71` and the iris at **0.58** of the
+  aperture, pupil 0.33 → **0.42** of the iris — big iris + big pupil + white sclera, the manga read. `EYE.el`
+  0.16 → **0.06** puts the eyes on the head's midline (chibi layout, no huge forehead), `EYE.az` 0.36, `EYE_RECT`
+  `0.03…0.72 / −0.26…0.56`. (A first attempt at `xh 0.80 / hu 1.00` with a 0.208 head was too far: the eyeballs came
+  out of their sockets and the face went blank — pulled back.)
+- **Head**: `HR0` 0.200/0.184/0.180, crown flattening 0.13, jaw taper 0.30 → **0.34** with the cheek/mochi terms cut
+  roughly in half (0.0050 / 0.0032 / 0.0032), a small forward chin (0.0044) and a stronger jaw corner (0.0036);
+  the under-jaw plane went deeper (0.186) with a wider blend (0.052) so the jaw reads as a line, not a cut. Neck
+  thicker to match (`NECK_R` ≈ 0.045), ears smaller (`earFrame` L 0.106 → 0.082).
+- **Hair**: strand counts now Tide 3 · Spike 4 · Twin 3 · Bob 3 · Pony 4 · Crest 3 · Knot 4 · Swoop 4 — the
+  face-framing locks, second bangs and the small swoop locks are gone. Each survivor is exaggerated (`rk` ×1.45,
+  end radius ×1.9, a longer taper to a point) and the single bang tab per style is more tube-like (`flat` 1.5 → 1.05)
+  so it reads as one lock instead of a sheet.
+- **Mask**: the liner is bold again to match the reference — `w = 0.16 + 0.34·smoothstep(−0.9, 0.7, up)` with the
+  inner edge at `e = 0.9`, so it covers the lid margin and hugs the eye. Gate + bridge follow the new eye centre.
+  At a distance the ring + bridge now read as a proper Inkling eye mask (verified in the game-tier line-up).
+- **Portraits** were re-framed for the bigger head: face 0.60 · head 0.76 · bust 1.32 spans (showcase.js).
+- **Budget**: game-tier kid 28 922 tris (smoke guard ok), hero ~90k, far ~8.5k — all under the 40k rule.
+
 ### Chibi + chunky-hair pass (2026-10-13)
 Owner brief: "a lot more chibi / manga, bigger eyes", and hair that reads as a few thick sculpted locks instead of a
 bundle of thin strands.

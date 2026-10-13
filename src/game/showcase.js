@@ -2943,9 +2943,9 @@ export class Showcase {
     else {
       c.getHeadPosition(this._pv);
       fx = this._pv.x; fz = this._pv.z;
-      if (kind === 'bust') { fy = this._pv.y - 0.3; span = 1.2; }
-      else if (kind === 'face') { fy = this._pv.y - 0.1; span = 0.5; pitch = -0.02; }
-      else { fy = this._pv.y - 0.08; span = 0.64; }
+      if (kind === 'bust') { fy = this._pv.y - 0.32; span = 1.32; }
+      else if (kind === 'face') { fy = this._pv.y - 0.11; span = 0.60; pitch = -0.02; }
+      else { fy = this._pv.y - 0.09; span = 0.76; }
     }
     const dist = span / 2 / Math.tan((fov * Math.PI) / 360);
     cam.fov = fov; cam.aspect = 1; cam.clearViewOffset();

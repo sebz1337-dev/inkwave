@@ -143,10 +143,10 @@ float iwMaskSD(vec3 s, vec4 ap) {
   float e = sqrt(xn * xn + ln * ln);
   float phi = atan(ln, xn);
   float up = clamp(sin(phi), -1.0, 1.0);
-  float w = 0.01 + 0.12 * smoothstep(-0.9, 0.7, up);     // heavy upper lid line, light lower rim (manga liner)
-  return min(e - 1.0, (1.0 + w) - e);
+  float w = 0.16 + 0.34 * smoothstep(-0.9, 0.7, up);     // bold manga liner: heavy over the lid, thinner under it
+  return min(e - 0.9, (1.0 + w) - e);
 }
-float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.72, 0.34, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
+float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.62, 0.32, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
 // eye-space constants shared by the skin (lids) and eye (ball, lid shadow) shaders
 // Snapshot the current face constants: the sculpt/eye metrics are global module state (setFaceShape), so a material
@@ -281,12 +281,12 @@ export function makeSkinMaterial(u, skinHex) {
           }
           // gate: keep the rim inside the eye's own patch (head space) so it cannot wander onto the cheeks or the
           // nose bridge — the aperture-space coordinate alone reaches a long way from the eyeball's centre
-          float gx = (abs(az) - 0.355) / 0.32, gy = (el - 0.15) / 0.34;
+          float gx = (abs(az) - 0.36) / 0.30, gy = (el - 0.06) / 0.34;
           float gate = 1.0 - smoothstep(0.9, 1.2, sqrt(gx * gx + gy * gy));
           float w = clamp(fwidth(sd), 1e-4, 0.04);
           float rimK = smoothstep(-0.008 - w, 0.008 + w, sd) * gate;
           // bridge: the bar joining both rings across the nose bridge — the reference mask is ONE connected shape
-          float bAz = (abs(az) - 0.08) / 0.15, bEl = (el - 0.10) / 0.05;
+          float bAz = (abs(az) - 0.07) / 0.15, bEl = (el - 0.03) / 0.05;
           float bridge = 1.0 - smoothstep(0.72, 1.05, length(vec2(bAz, bEl)));
           iwVisor = max(rimK, bridge);
           vec3 vc = mix(vec3(0.012, 0.0135, 0.02), vec3(0.018, 0.021, 0.032), smoothstep(-0.1, 0.5, el));
@@ -1286,7 +1286,7 @@ export function makeEyeMaterial(u) {
           ic = mix(ic, ic * 1.3 + 0.04, coll * 0.55 * fl);
           ic = mix(ic, ic * 1.45 + 0.07, smoothstep(0.3, 0.95, r) * smoothstep(0.15, -0.7, iq.y) * 0.85);  // lower glow
           ic *= mix(1.0, 0.16, smoothstep(0.68, 0.96, r));                                                  // limbal ring (art pass 1: thicker, darker)
-          float pr = 0.33 * (0.8 + 0.45 * clamp(uPupil, 0.0, 1.0));
+          float pr = 0.42 * (0.8 + 0.45 * clamp(uPupil, 0.0, 1.0));
           float pd = length(iq * vec2(1.0, 0.9) - vec2(0.0, 0.03)) - pr;
           float pw = max(fwidth(pd), 1e-4);
           float pupil = (1.0 - smoothstep(-pw, pw, pd)) * irisM;
