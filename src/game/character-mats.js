@@ -133,15 +133,18 @@ ${BUMP}
 // ================================================================================================
 const FACE_GLSL = /* glsl */`
 float iwSmax(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (a - b) / k, 0.0, 1.0); return mix(b, a, h) + k * h * (1.0 - h); }
-float iwVisorSD(float az, float el){
-  float ax = abs(az);
-  float lobe = (1.0 - length(vec2((ax - 0.35) / 0.28, (el - 0.18) / 0.30))) * 0.26;
-  float bridge = (ax > 0.13 && ax < 0.44) ? 0.05 + 0.13 * smoothstep(0.13, 0.42, ax) - abs(el - 0.19) : -1.0;
-  float s = (ax - 0.44) / 0.62;
-  float wc = 0.21 - 0.05 * pow(clamp(s, 0.0, 1.0), 1.2);
-  float wh = 0.17 * pow(clamp(1.0 - s, 0.0, 1.0), 0.5);
-  float wing = (s > -0.05 && s <= 1.0) ? wh - abs(el - wc) : -1.0;
-  return iwSmax(iwSmax(lobe, bridge, 0.06), wing, 0.07);
+// Inkling eye mask: a bold outline in EYE-APERTURE space (ap = xh, hu, hl, l0), so it hugs the eye opening and follows
+// every eye shape/size automatically. Thick over the upper lid, thin under it, with a point sweeping out and up from
+// the outer corner. s = unit direction in eye space (from the eyeball centre). > 0 inside the painted band.
+float iwMaskSD(vec3 s, vec4 ap) {
+  float lam = atan(s.y, s.z);
+  float xn = s.x / ap.x;
+  float ln = (lam - ap.w) / (lam >= ap.w ? ap.y : ap.z);
+  float e = sqrt(xn * xn + ln * ln);
+  float phi = atan(ln, xn);
+  float up = clamp(sin(phi), -1.0, 1.0);
+  float w = 0.06 + 0.20 * smoothstep(-0.8, 0.9, up);     // bold over the upper lid, thin line under it (no spikes)
+  return min(e - 0.97, (1.0 + w) - e);
 }
 float iwHairline(float az){ float a = abs(az) / 3.14159265; float h = mix(0.58, 0.3, smoothstep(0.1, 0.42, a)); h = mix(h, -0.8, smoothstep(0.5, 0.96, a)); return h + 0.022 * cos(az * 9.0) * (1.0 - smoothstep(0.45, 0.78, a)); }
 `;
@@ -200,6 +203,7 @@ export function makeSkinMaterial(u, skinHex) {
       fPars: bodyFPars + /* glsl */`
         uniform vec4 uMouth; uniform vec4 uMouth2; uniform vec3 uTeam; uniform float uFreckle; uniform float uSkinLum;
         uniform vec3 uSSSW; uniform vec3 uSSSTint; uniform vec3 uMouthC; uniform vec3 uMouthF;
+        uniform vec3 uEyeC[2]; uniform mat3 uEyeMi[2]; uniform vec4 uEyeAp;
         varying vec3 vHead; varying vec4 vFace; varying vec2 vIwUv;
         float iwSSS = 1.0; float iwThin = 0.0;` + FACE_GLSL,
       fColor: /* glsl */`
@@ -267,11 +271,24 @@ export function makeSkinMaterial(u, skinHex) {
           float lineW = 0.0044 * mix(1.0, 0.5, smoothstep(0.6, 1.05, lx));
           float lineK = iwStroke(el - mEl + 0.002, lineW) * (1.0 - smoothstep(0.98, 1.12, lx)) * (1.0 - smoothstep(0.04, 0.2, uMouth.z)); // the opening takes over
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.38, 0.22, 0.24), lineK * 0.9);
-          // ---- mask: pigment in the skin (not a lacquered band): near-black with a faint cool tint, satin, a soft
-          //      ~1.5 mm feathered edge (plus AA), a whisper of a recess in the geometry, and a little of the skin's scatter
-          float sd = iwVisorSD(az, el);
-          float w = max(fwidth(sd), 1e-4);
-          iwVisor = smoothstep(-0.008 - w, 0.008 + w, sd);
+          // ---- mask: a bold outline hugging each eye opening (eye-aperture space → follows eye shape and size),
+          //      near-black with a faint cool tint, satin, feathered ~1.5 mm (plus AA), damped by the skin's scatter
+          float sd = -1.0;
+          for (int i = 0; i < 2; i++) {
+            vec3 es = uEyeMi[i] * (vBindPos - uEyeC[i]);
+            if (es.z < 0.02) continue;                       // behind the socket: no pigment on the back of the lid
+            sd = max(sd, iwMaskSD(normalize(es), uEyeAp));
+          }
+          // gate: keep the rim inside the eye's own patch (head space) so it cannot wander onto the cheeks or the
+          // nose bridge — the aperture-space coordinate alone reaches a long way from the eyeball's centre
+          float gx = (abs(az) - 0.355) / 0.32, gy = (el - 0.15) / 0.34;
+          float gate = 1.0 - smoothstep(0.9, 1.2, sqrt(gx * gx + gy * gy));
+          float w = clamp(fwidth(sd), 1e-4, 0.04);
+          float rimK = smoothstep(-0.008 - w, 0.008 + w, sd) * gate;
+          // bridge: the bar joining both rings across the nose bridge — the reference mask is ONE connected shape
+          float bAz = (abs(az) - 0.10) / 0.24, bEl = (el - 0.115) / 0.055;
+          float bridge = 1.0 - smoothstep(0.72, 1.05, length(vec2(bAz, bEl)));
+          iwVisor = max(rimK, bridge);
           vec3 vc = mix(vec3(0.012, 0.0135, 0.02), vec3(0.018, 0.021, 0.032), smoothstep(-0.1, 0.5, el));
           diffuseColor.rgb = mix(diffuseColor.rgb, vc, iwVisor);
           iwSSS *= 1.0 - 0.88 * iwVisor;

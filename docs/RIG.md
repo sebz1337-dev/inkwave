@@ -78,14 +78,23 @@ Sculpt and shading only — no bone, rig or style-index change:
 - **Lashes removed.** The two geometry lash tabs (`LASHES` / `addLash` in character-face.js) and their contact-shadow
   term in the eye shader are gone: they rendered as a black blob inside the aperture at close range. `RES[].lash` is
   dropped with them.
-- **Iris fills the eye.** `EYEB.iris` 0.37 → 0.7, aperture widened (`xh` 0.5 → 0.55, `hu`/`hl` 0.6/0.57 → 0.68/0.63,
-  radii up), sclera desaturated and its corner pink cut, limbal ring thicker/darker, pupil rebalanced. The googly
-  white annulus is gone; only a thin sclera crescent remains at the outer corner.
-- **Mask reshaped.** `visorSD` (character-face.js) and its skin-shader twin `iwVisorSD` (character-mats.js) — the two
-  copies must stay identical — now make two patches that *never* meet over the nose (clear below `ax 0.13`), sit a
-  little higher, and taper to a shorter outer point instead of running past the eye.
+- **Iris + sclera rebalanced.** `EYEB.iris` 0.37 → 0.62 → **0.42** (the manga reference has the iris at about half
+  the aperture, with a real white sclera around it), aperture widened (`xh` 0.5 → 0.55, `hu`/`hl` 0.6/0.57 → 0.68/0.63,
+  radii up), limbal ring thicker/darker, pupil rebalanced, sclera desaturated with the corner pink cut.
+- **Mask: a connected eye outline, shading only.** The old filled patch (`visorSD` in character-face.js + its shader
+  twin `iwVisorSD`) is **deleted**, recess included — a thin rim could not be modelled on the carrier grid anyway.
+  The pigment is now computed in the skin shader alone, in **eye-aperture space** (from `uEyeMi`, `uEyeC`, `uEyeAp`),
+  so it *follows every eye shape and size automatically* — verified across `eyeSize` 0/1/2. `iwMaskSD()` returns a
+  bold ring (thick over the upper lid, thin under it, no spikes), the two rings are joined by a **bridge bar** across
+  the nose (`abs(az)`-space ellipse at `el ≈ 0.115`) so the mask reads as one connected shape like the reference, and
+  a soft head-space gate (`(abs(az)-0.355)/0.32`, `(el-0.15)/0.34`) keeps the ring off the cheeks — without the gate,
+  aperture-space distances are angular and `e ≈ 1` reaches a long way from the eyeball's centre.
 - **Head sculpt.** `HR` 0.178/0.176/0.165 → 0.186/0.168/0.168 (wider, flatter cranium), flatter crown, stronger brow
   ridge, cheekbone and chin, an added jaw-corner term, a sharper nose tip and wing crease plus an under-tip shadow.
+- **Jaw plane follows the sculpt** (the "head cut in half" fix). `JAW_PLANE.d` was an absolute depth below `HEAD_C`;
+  once `HR.y` changed it cut a visible crease across the lower face. It is now `0.163 · HR.y / HR0.y` (recomputed in
+  `setFaceShape`, so every faceShape gets a consistent jaw) and the smooth-min blend widened `k 0.016 → 0.038`, which
+  softens the junction into the neck instead of creasing it.
 - **Hairline scallop.** `hairline(az)` (and its `iwHairline` twin) gains a shallow `cos(az*9)` wave at the front, so
   the cap edge reads as fringe locks rather than one smooth helmet edge.
 - **Tentacle section + tips.** The strand section is cupped underneath (`strandSpec`, character-geo.js) so the printed

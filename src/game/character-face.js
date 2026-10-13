@@ -61,19 +61,6 @@ export const EAR = { az: 1.5, el: -0.035 };
 // fixed core-skeleton indices (BODY_BONES order in character-geo.js; the rig is append-only so these never move)
 export const FACE_BONES = { head: 4, eyeL: 19, eyeR: 20 };
 
-/** Mask (Inkling eye mask) signed distance in the head's (az, el): > 0 inside. Same shape as the skin shader's pigment. */
-export function visorSD(az, el) {
-  const ax = Math.abs(az);
-  // patch: a wide Inkling lobe over the eye, angled slightly up-and-out, tapering to an outer point
-  const lobe = (1 - Math.hypot((ax - 0.35) / 0.28, (el - 0.18) / 0.30)) * 0.26;
-  // bridge: the two patches never meet over the nose (clear below ax 0.13), and it fades out toward the lobe
-  const bridge = ax > 0.13 && ax < 0.44 ? 0.05 + 0.13 * sstep(0.13, 0.42, ax) - Math.abs(el - 0.19) : -1;
-  const s = (ax - 0.44) / 0.62;                 // shorter outer sweep (a patch, not a streak)
-  const wc = 0.21 - 0.05 * Math.pow(clamp(s, 0, 1), 1.2);
-  const wh = 0.17 * Math.pow(clamp(1 - s, 0, 1), 0.5);
-  const wing = s > -0.05 && s <= 1 ? wh - Math.abs(el - wc) : -1;
-  return smaxK(smaxK(lobe, bridge, 0.06), wing, 0.07);
-}
 /** Scalp (hair cap) hairline elevation as a function of azimuth. A shallow scallop at the front reads as pointed
  *  fringe locks instead of one smooth helmet edge (art pass 1); it fades out toward the temples and nape. */
 export function hairline(az) {
@@ -91,8 +78,12 @@ export function hairline(az) {
  *  the chin tucks, and a flat under-jaw plane runs from under the chin back to the throat (smooth-min with a plane, so
  *  the jaw line appears wherever it meets the sides). Then the features: brow ridge, recessed mask, button nose with
  *  wings and nostrils, philtrum, mouth mound, mentolabial fold. */
-const JAW_PLANE = { n: new V3(0, -1, 0.35).normalize(), d: 0, k: 0.016 };
-JAW_PLANE.d = 0.152 / Math.hypot(1, 0.35);                         // plane through (0, −0.152, 0) from HEAD_C, rising 35 % forward
+// under-jaw plane: its depth below HEAD_C follows HR.y, so the jaw+neck union stays consistent for every faceShape
+// (an absolute depth cut the chin off as soon as the sculpt changed — the "head cut in half" bug).
+const JAW_PLANE = { n: new V3(0, -1, 0.35).normalize(), d: 0, k: 0.038 };
+const JAW_D0 = 0.163;                                              // plane through (0, −0.163·HR.y/HR0.y, 0) from HEAD_C...
+const jawDepth = () => (JAW_D0 * HR.y) / HR0.y;                    // ...rising 35 % forward
+JAW_PLANE.d = jawDepth() / Math.hypot(1, 0.35);
 export function headShape(dx, dy, dz, out) {
   let x = dx * HR.x, y = dy * HR.y, z = dz * HR.z;
   const el = Math.asin(clamp(dy, -1, 1)), az = Math.atan2(dx, dz), aa = Math.abs(az);
@@ -128,7 +119,6 @@ export function headShape(dx, dy, dz, out) {
   off += 0.0046 * CUR.brow * Math.exp(-(((aa - 0.37) / 0.22) ** 2) - (((el - 0.45) / 0.075) ** 2)); // brow ridge: reads through the mask (art pass 1)
   off += 0.0008 * CUR.brow * Math.exp(-((az / 0.09) ** 2) - (((el - 0.43) / 0.07) ** 2));           // glabella
   off -= 0.0022 * Math.exp(-((az / 0.17) ** 2) - (((el + 0.57) / 0.045) ** 2));          // mentolabial fold
-  off -= 0.0012 * sstep(-0.02, 0.05, visorSD(az, el));                                    // mask: a crisp recess at the patch edge (art pass 1)
   let r = Math.hypot(x, y, z);
   const r1 = r + off;
   // under-jaw plane (front half only; the round back of the skull and the nape are left alone)
@@ -204,7 +194,7 @@ const RES = [
 // lidU/lidL: lid shell radius (eye space, 1 = eyeball) · k: lid/socket blend · dip: socket hollow · apex: eyeball apex
 // depth under the (recessed) skin · yaw: eye axis turned outward · rest: iris rest yaw (converges the gaze) · iris/pupil radii
 export const EYEB = { rx: 0.054, ry: 0.0655, rz: 0.036, xh: 0.55, hu: 0.68, hl: 0.63, l0: 0.0, close: 0.22, over: 0.035,
-  lidU: 1.075, lidL: 1.05, k: 0.07, dip: 0.055, apex: 0.0008, yaw: 0.2, rest: -0.06, iris: 0.7, cornea: 0.045 };
+  lidU: 1.075, lidL: 1.05, k: 0.07, dip: 0.055, apex: 0.0008, yaw: 0.2, rest: -0.06, iris: 0.42, cornea: 0.045 };
 const lamU = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 + EYEB.hu * Math.sqrt(q); };
 const lamL = (x) => { const u = x / EYEB.xh, q = 1 - u * u; return q <= 0 ? EYEB.l0 : EYEB.l0 - EYEB.hl * Math.sqrt(q); };
 const lamClose = (x) => lamL(x) + EYEB.close * (lamU(x) - lamL(x));
@@ -307,6 +297,7 @@ export function setFaceShape(shapeIdx = 0, eyeIdx = 0) {
   const es = EYE_SIZES[wrapN(eyeIdx, EYE_SIZES.length)] || EYE_SIZES[0];
   const hr = sh.hr || [1, 1, 1];
   HR.x = HR0.x * hr[0]; HR.y = HR0.y * hr[1]; HR.z = HR0.z * hr[2];
+  JAW_PLANE.d = jawDepth() / Math.hypot(1, 0.35);   // the under-jaw cut follows the head's height
   CUR.crown = sh.crown ?? 1; CUR.cheek = sh.cheek ?? 1; CUR.jaw = sh.jaw ?? 1; CUR.chin = sh.chin ?? 1; CUR.brow = sh.brow ?? 1;
   // eyes: always start from the tuned defaults so switching back and forth is exact
   const s = es.s ?? 1;
